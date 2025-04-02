@@ -1,0 +1,78 @@
+import 'package:chat_app/Config/Images.dart';
+import 'package:chat_app/Config/Strings.dart';
+import 'package:chat_app/Controller/ProfileController.dart';
+import 'package:chat_app/Pages/HomePage/Widget/ChatsList.dart';
+import 'package:chat_app/Pages/HomePage/Widget/TabBar.dart';
+import 'package:flutter/material.dart';
+import 'package:get/get.dart';
+
+class Homepage extends StatefulWidget {
+  const Homepage({super.key});
+
+  @override
+  State<Homepage> createState() => _HomepageState();
+}
+
+class _HomepageState extends State<Homepage> with TickerProviderStateMixin {
+  late TabController tabController;
+
+  @override
+  void initState() {
+    super.initState();
+    tabController = TabController(length: 3, vsync: this);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    ProfileController profileController = Get.put(ProfileController());
+    return Scaffold(
+      appBar: AppBar(
+        backgroundColor: Theme.of(context).colorScheme.primaryContainer,
+        title: Text(
+          AppString.appName,
+          style: Theme.of(context).textTheme.headlineSmall,
+        ),
+        leading: Image.asset(AssetsImage.appIcon, width: 10),
+        actions: [
+          IconButton(onPressed: () {}, icon: Icon(Icons.search)),
+          IconButton(
+            onPressed: () {
+              profileController.getUserDetails();
+              Get.toNamed("/profilePage");
+            },
+            icon: Icon(Icons.more_vert),
+          ),
+        ],
+        bottom: MyTabBar(tabController, context),
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {},
+        backgroundColor: Theme.of(context).colorScheme.primary,
+        child: Icon(Icons.add, color: Theme.of(context).colorScheme.onSurface),
+      ),
+
+      body: TabBarView(
+        controller: tabController,
+        children: [
+          ChatsList(),
+          ListView(
+            children: [
+              ListTile(
+                title: Text("Name  Rogers"),
+                subtitle: Text("Chat with your friends"),
+              ),
+            ],
+          ),
+          ListView(
+            children: [
+              ListTile(
+                title: Text("Name  Rogers"),
+                subtitle: Text("Chat with your friends"),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}

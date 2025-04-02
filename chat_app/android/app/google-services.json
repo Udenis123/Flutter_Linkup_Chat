@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "554223931371",
+    "project_id": "linkup-chat-app-c7cef",
+    "storage_bucket": "linkup-chat-app-c7cef.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:554223931371:android:7cf90750930547142153ae",
+        "android_client_info": {
+          "package_name": "com.example.chat_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD6UOs8u-oBKK8hN2l3vsqV2-2E3JK0NFM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
