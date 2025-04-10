@@ -1,9 +1,10 @@
+import 'package:chat_app/ContactPage/ContactPage.dart';
 import 'package:chat_app/Pages/Auth/AuthPage.dart';
 import 'package:chat_app/Pages/Chat/ChatPage.dart';
 import 'package:chat_app/Pages/HomePage/HomePage.dart';
 import 'package:chat_app/Pages/Welcome/WelcomePage.dart';
-import 'package:chat_app/Profile/ProfilePage.dart';
-import 'package:chat_app/Profile/UpdateProfile.dart';
+import 'package:chat_app/UserProfile/ProfilePage.dart';
+import 'package:chat_app/UserProfile/UpdateProfile.dart';
 import 'package:get/route_manager.dart';
 
 var pagePath = [
@@ -19,12 +20,12 @@ var pagePath = [
     transition: Transition.rightToLeft,
     transitionDuration: const Duration(milliseconds: 1000),
   ),
-  GetPage(
-    name: "/chatPage",
-    page: () => const ChatPage(),
-    transition: Transition.downToUp,
-    transitionDuration: const Duration(milliseconds: 500),
-  ),
+  // GetPage(
+  //   name: "/chatPage",
+  //   page: () => const ChatPage(),
+  //   transition: Transition.downToUp,
+  //   transitionDuration: const Duration(milliseconds: 500),
+  // ),
   GetPage(
     name: "/welcomePage",
     page: () => const Welcomepage(),
@@ -33,14 +34,14 @@ var pagePath = [
   ),
   GetPage(
     name: "/profilePage",
-    page: () => const Profilepage(),
+    page: () => const UserProfilepage(),
     transition: Transition.rightToLeft,
     transitionDuration: const Duration(milliseconds: 500),
   ),
   GetPage(
-    name: "/updateProfile",
-    page: () => const UpdateProfile(),
-    transition: Transition.rightToLeft,
+    name: "/contactPage",
+    page: () => const Contactpage(),
+    transition: Transition.downToUp,
     transitionDuration: const Duration(milliseconds: 500),
   ),
 ];

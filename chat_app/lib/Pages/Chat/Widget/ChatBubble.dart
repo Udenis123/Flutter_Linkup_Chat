@@ -25,30 +25,32 @@ class Chatbubble extends StatelessWidget {
             isComming ? CrossAxisAlignment.start : CrossAxisAlignment.end,
         children: [
           Container(
-            padding: EdgeInsets.all(10),
+            padding: EdgeInsets.all(13),
             constraints: BoxConstraints(
               maxWidth: MediaQuery.sizeOf(context).width / 1.3,
             ),
             decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.primaryContainer,
+              color: isComming?
+                  Theme.of(context).colorScheme.primaryContainer
+                  : Color(const Color.fromARGB(255, 9, 89, 155).value),
               borderRadius:
                   isComming
                       ? BorderRadius.only(
-                        topLeft: Radius.circular(10),
-                        topRight: Radius.circular(10),
+                        topLeft: Radius.circular(20),
+                        topRight: Radius.circular(20),
                         bottomLeft: Radius.circular(0),
-                        bottomRight: Radius.circular(10),
+                        bottomRight: Radius.circular(20),
                       )
                       : BorderRadius.only(
-                        topLeft: Radius.circular(10),
-                        topRight: Radius.circular(10),
-                        bottomLeft: Radius.circular(10),
+                        topLeft: Radius.circular(20),
+                        topRight: Radius.circular(20),
+                        bottomLeft: Radius.circular(20),
                         bottomRight: Radius.circular(0),
                       ),
             ),
             child:
                 imageUrl == ""
-                    ? Text(message)
+                    ? Text(message,style: TextStyle(fontSize: 17,fontFamily:"Poppins"),)
                     : Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [

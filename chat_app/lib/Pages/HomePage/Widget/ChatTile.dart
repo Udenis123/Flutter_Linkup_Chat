@@ -38,7 +38,7 @@ class ChatTile extends StatelessWidget {
                   ), // Ring border
                 ),
                 child: ClipOval(
-                  child: Image.asset(imageUrl, width: 55, fit: BoxFit.cover),
+                  child: Image.network(imageUrl, width: 55, fit: BoxFit.cover),
                 ),
               ),
               SizedBox(width: 15),

@@ -1,4 +1,6 @@
 class AssetsImage {
+
+  static const defaultImage = "https://th.bing.com/th/id/OIP.SAcV4rjQCseubnk32USHigHaHx?rs=1&pid=ImgDetMain";
   static const iconsPath = "assets/Icons";
   static const imagesPath = "assets/Images";
 

@@ -3,6 +3,8 @@ import 'package:chat_app/Config/Strings.dart';
 import 'package:chat_app/Controller/ProfileController.dart';
 import 'package:chat_app/Pages/HomePage/Widget/ChatsList.dart';
 import 'package:chat_app/Pages/HomePage/Widget/TabBar.dart';
+import 'package:chat_app/Pages/ProfilePage.dart/ProfilePage.dart';
+import 'package:chat_app/UserProfile/ProfilePage.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
@@ -36,9 +38,9 @@ class _HomepageState extends State<Homepage> with TickerProviderStateMixin {
         actions: [
           IconButton(onPressed: () {}, icon: Icon(Icons.search)),
           IconButton(
-            onPressed: () {
-              profileController.getUserDetails();
-              Get.toNamed("/profilePage");
+            onPressed: () async{
+             await profileController.getUserDetails();
+              Get.to(() => Profilepage());
             },
             icon: Icon(Icons.more_vert),
           ),
@@ -46,7 +48,9 @@ class _HomepageState extends State<Homepage> with TickerProviderStateMixin {
         bottom: MyTabBar(tabController, context),
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () {},
+        onPressed: () {
+          Get.toNamed("/contactPage");
+        },
         backgroundColor: Theme.of(context).colorScheme.primary,
         child: Icon(Icons.add, color: Theme.of(context).colorScheme.onSurface),
       ),

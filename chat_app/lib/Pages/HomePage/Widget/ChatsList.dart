@@ -17,20 +17,20 @@ class ChatsList extends StatelessWidget {
               Get.toNamed('/chatPage');
             },
             child: ChatTile(
-              imageUrl: AssetsImage.girlPic,
+              imageUrl: AssetsImage.defaultImage,
               name: "Denis Uwihirwe",
               lastChat: "how are doing bro?",
               lastTime: "08:43 PM",
             ),
           ),
           ChatTile(
-            imageUrl: AssetsImage.boyPic,
+            imageUrl: AssetsImage.defaultImage,
             name: "Ntwari Rogers",
             lastChat: "Hello, how are you?",
             lastTime: "8:44 PM",
           ),
           ChatTile(
-            imageUrl: AssetsImage.girlPic,
+            imageUrl: AssetsImage.defaultImage,
             name: "Denis Uwihirwe",
             lastChat: "how are doing bro?",
             lastTime: "08:43 PM",
