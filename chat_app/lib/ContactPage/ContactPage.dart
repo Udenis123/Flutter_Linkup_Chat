@@ -10,7 +10,6 @@ import 'package:get/get.dart';
 
 class Contactpage extends StatelessWidget {
   const Contactpage({super.key});
-  
 
   @override
   Widget build(BuildContext context) {
@@ -58,24 +57,44 @@ class Contactpage extends StatelessWidget {
               ],
             ),
             SizedBox(height: 10),
-            Obx(()=>contactController.isLoading.value?CircularProgressIndicator(): Column(
-              children: 
-                contactController.userList.map((e)=> InkWell(
-                  onTap: () {
-                    Get.to((ChatPage(userModel: e)));
-                    String roomId =chatController.getRoomId(e.id!);
-                    print("😍😍😍"+roomId);
-
-                  },
-                  child: ChatTile(
-                    imageUrl: e.profileImage??AssetsImage.defaultImage,
-                    name: e.name??"user name",
-                    lastChat: e.about??"Linkup is a social media app",
-                    lastTime: "",
-                  ),
-                ),)
-               .toList(),
-            ),)
+            Obx(
+              () =>
+                  contactController.isLoading.value
+                      ? CircularProgressIndicator()
+                      : Column(
+                        children:
+                            contactController.userList
+                                .map(
+                                  (e) => InkWell(
+                                    onTap: () {
+                                      Get.to((ChatPage(userModel: e)));
+                                      String roomId = chatController.getRoomId(
+                                        e.id!,
+                                      );
+                                      print("😍😍😍" + roomId);
+                                    },
+                                    child: ChatTile(
+                                      imageUrl:
+                                          e.profileImage ??
+                                          AssetsImage.defaultImage,
+                                      name: e.name ?? "user name",
+                                      lastChat:
+                                          e.about ??
+                                          "Linkup is a social media app",
+                                      lastTime:
+                                          e.email ==
+                                                  chatController
+                                                      .auth
+                                                      .currentUser!
+                                                      .email
+                                              ? "You"
+                                              : "10:00",
+                                    ),
+                                  ),
+                                )
+                                .toList(),
+                      ),
+            ),
           ],
         ),
       ),

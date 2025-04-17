@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 
 class ChatTile extends StatelessWidget {
@@ -16,7 +17,7 @@ class ChatTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: EdgeInsets.only(bottom: 10),
+      margin: EdgeInsets.only(top: 10),
       padding: EdgeInsets.all(10),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(15),
@@ -38,7 +39,12 @@ class ChatTile extends StatelessWidget {
                   ), // Ring border
                 ),
                 child: ClipOval(
-                  child: Image.network(imageUrl, width: 55, fit: BoxFit.cover),
+                  child: CachedNetworkImage(
+                    imageUrl: imageUrl,
+                    fit: BoxFit.cover,
+                    placeholder: (context, url) => CircularProgressIndicator(),
+                    errorWidget: (context, url, error) => Icon(Icons.error),
+                  ),
                 ),
               ),
               SizedBox(width: 15),
@@ -47,15 +53,25 @@ class ChatTile extends StatelessWidget {
                 children: [
                   Text(name, style: Theme.of(context).textTheme.bodyLarge),
                   SizedBox(height: 7),
-                  Text(
-                    lastChat,
-                    style: Theme.of(context).textTheme.labelMedium,
+                  Container(
+                    width: 200,
+                    child: Text(
+                      lastChat,
+                      style: Theme.of(context).textTheme.labelMedium,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
                 ],
               ),
             ],
           ),
-          Text(lastTime, style: Theme.of(context).textTheme.labelMedium),
+          // Limit time text width
+          Text(
+            lastTime,
+            style: Theme.of(context).textTheme.labelMedium,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.right,
+          ),
         ],
       ),
     );

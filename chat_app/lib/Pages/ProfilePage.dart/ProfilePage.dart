@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:chat_app/Controller/AuthController.dart';
 import 'package:chat_app/Controller/ImagePicker.dart';
 import 'package:chat_app/Controller/ProfileController.dart';
@@ -46,7 +47,7 @@ class Profilepage extends StatelessWidget {
             },
             icon: Padding(
               padding: const EdgeInsets.all(8.0),
-              child: Icon(Icons.logout,size: 25,),
+              child: Icon(Icons.logout, size: 25),
             ),
           ),
         ],
@@ -141,12 +142,19 @@ class Profilepage extends StatelessWidget {
                                                       BorderRadius.circular(
                                                         100,
                                                       ),
-                                                  child: Image.network(
-                                                    profileController
-                                                        .currentUser
-                                                        .value
-                                                        .profileImage!,
+                                                  child: CachedNetworkImage(
+                                                    imageUrl:
+                                                        profileController
+                                                            .currentUser
+                                                            .value
+                                                            .profileImage!,
                                                     fit: BoxFit.cover,
+                                                    placeholder:
+                                                        (context, url) =>
+                                                            CircularProgressIndicator(),
+                                                    errorWidget:
+                                                        (context, url, error) =>
+                                                            Icon(Icons.error),
                                                   ),
                                                 ),
                                       ),
@@ -204,37 +212,42 @@ class Profilepage extends StatelessWidget {
                           ),
                         ),
                         SizedBox(height: 20),
-                        Obx(()=>profileController.isLoading.value?CircularProgressIndicator():Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Obx(
-                              () =>
-                                  isEditing.value
-                                      ? PrimaryButton(
-                                        btnName: "Save",
-                                        icon: Icons.save,
-                                        ontap: () async {
-                                          await profileController.UpdateProfile(
-                                            imagepath.value,
-                                            about.text,
-                                            name.text,
-                                            phone.text,
-                                          );
-                                          isEditing.value = false;
-                                          await profileController
-                                              .getUserDetails();
-                                        },
-                                      )
-                                      : PrimaryButton(
-                                        btnName: "Edit",
-                                        icon: Icons.edit,
-                                        ontap: () {
-                                          isEditing.value = true;
-                                        },
+                        Obx(
+                          () =>
+                              profileController.isLoading.value
+                                  ? CircularProgressIndicator()
+                                  : Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Obx(
+                                        () =>
+                                            isEditing.value
+                                                ? PrimaryButton(
+                                                  btnName: "Save",
+                                                  icon: Icons.save,
+                                                  ontap: () async {
+                                                    await profileController.UpdateProfile(
+                                                      imagepath.value,
+                                                      about.text,
+                                                      name.text,
+                                                      phone.text,
+                                                    );
+                                                    isEditing.value = false;
+                                                    await profileController
+                                                        .getUserDetails();
+                                                  },
+                                                )
+                                                : PrimaryButton(
+                                                  btnName: "Edit",
+                                                  icon: Icons.edit,
+                                                  ontap: () {
+                                                    isEditing.value = true;
+                                                  },
+                                                ),
                                       ),
-                            ),
-                          ],
-                        ),),
+                                    ],
+                                  ),
+                        ),
                         SizedBox(height: 20),
                       ],
                     ),

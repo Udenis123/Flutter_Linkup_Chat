@@ -32,12 +32,12 @@ var pagePath = [
     transition: Transition.downToUp,
     transitionDuration: const Duration(milliseconds: 500),
   ),
-  GetPage(
-    name: "/profilePage",
-    page: () => const UserProfilepage(),
-    transition: Transition.rightToLeft,
-    transitionDuration: const Duration(milliseconds: 500),
-  ),
+  // GetPage(
+  //   name: "/profilePage",
+  //   page: () => const UserProfilepage(),
+  //   transition: Transition.rightToLeft,
+  //   transitionDuration: const Duration(milliseconds: 500),
+  // ),
   GetPage(
     name: "/contactPage",
     page: () => const Contactpage(),

@@ -1,4 +1,7 @@
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:chat_app/Controller/ImagePicker.dart';
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 
 class Chatbubble extends StatelessWidget {
   final String message;
@@ -18,6 +21,28 @@ class Chatbubble extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    void _showImageDialog(BuildContext context, String url) {
+      showDialog(
+        context: context,
+        builder:
+            (ctx) => Dialog(
+              backgroundColor: Colors.transparent,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  GestureDetector(
+                    onTap: () => Navigator.of(context).pop(),
+                    child: CachedNetworkImage(
+                      imageUrl: url,
+                      fit: BoxFit.contain,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+      );
+    }
+
     return Padding(
       padding: const EdgeInsets.only(bottom: 20),
       child: Column(
@@ -25,40 +50,77 @@ class Chatbubble extends StatelessWidget {
             isComming ? CrossAxisAlignment.start : CrossAxisAlignment.end,
         children: [
           Container(
-            padding: EdgeInsets.all(13),
+            padding: imageUrl == "" ? EdgeInsets.all(8) : EdgeInsets.all(3),
             constraints: BoxConstraints(
               maxWidth: MediaQuery.sizeOf(context).width / 1.3,
             ),
             decoration: BoxDecoration(
-              color: isComming?
-                  Theme.of(context).colorScheme.primaryContainer
-                  : Color(const Color.fromARGB(255, 9, 89, 155).value),
+              color:
+                  isComming
+                      ? Theme.of(context).colorScheme.primaryContainer
+                      : Color(const Color.fromARGB(255, 9, 89, 155).value),
               borderRadius:
                   isComming
                       ? BorderRadius.only(
-                        topLeft: Radius.circular(20),
-                        topRight: Radius.circular(20),
+                        topLeft:
+                            imageUrl == ""
+                                ? Radius.circular(20)
+                                : Radius.circular(5),
+                        topRight:
+                            imageUrl == ""
+                                ? Radius.circular(20)
+                                : Radius.circular(5),
                         bottomLeft: Radius.circular(0),
-                        bottomRight: Radius.circular(20),
+                        bottomRight:
+                            imageUrl == ""
+                                ? Radius.circular(20)
+                                : Radius.circular(5),
                       )
                       : BorderRadius.only(
-                        topLeft: Radius.circular(20),
-                        topRight: Radius.circular(20),
-                        bottomLeft: Radius.circular(20),
+                        topLeft:
+                            imageUrl == ""
+                                ? Radius.circular(20)
+                                : Radius.circular(5),
+                        topRight:
+                            imageUrl == ""
+                                ? Radius.circular(20)
+                                : Radius.circular(5),
+                        bottomLeft:
+                            imageUrl == ""
+                                ? Radius.circular(20)
+                                : Radius.circular(5),
                         bottomRight: Radius.circular(0),
                       ),
             ),
             child:
                 imageUrl == ""
-                    ? Text(message,style: TextStyle(fontSize: 17,fontFamily:"Poppins"),)
+                    ? Text(
+                      message,
+                      style: TextStyle(fontSize: 17, fontFamily: "Poppins"),
+                    )
                     : Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         ClipRRect(
                           borderRadius: BorderRadius.circular(5),
-                          child: Image.network(imageUrl),
+                          child: GestureDetector(
+                            onTap: () => _showImageDialog(context, imageUrl),
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(5),
+                              child: CachedNetworkImage(
+                                imageUrl: imageUrl,
+                                fit: BoxFit.cover,
+                                placeholder:
+                                    (context, url) =>
+                                        CircularProgressIndicator(),
+                                errorWidget:
+                                    (context, url, error) => Icon(Icons.error),
+                              ),
+                            ),
+                          ),
                         ),
-                        Text(message),
+                        message == "" ? Container() : SizedBox(),
+                        message == "" ? Container() : Text(message),
                       ],
                     ),
           ),

@@ -1,4 +1,7 @@
 import 'package:chat_app/Config/Images.dart';
+import 'package:chat_app/Controller/ContactController.dart';
+import 'package:chat_app/Controller/ProfileController.dart';
+import 'package:chat_app/Pages/Chat/ChatPage.dart';
 import 'package:chat_app/Pages/HomePage/Widget/ChatTile.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -8,34 +11,43 @@ class ChatsList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(8.0),
-      child: ListView(
-        children: [
-          InkWell(
-            onTap: () {
-              Get.toNamed('/chatPage');
-            },
-            child: ChatTile(
-              imageUrl: AssetsImage.defaultImage,
-              name: "Denis Uwihirwe",
-              lastChat: "how are doing bro?",
-              lastTime: "08:43 PM",
-            ),
-          ),
-          ChatTile(
-            imageUrl: AssetsImage.defaultImage,
-            name: "Ntwari Rogers",
-            lastChat: "Hello, how are you?",
-            lastTime: "8:44 PM",
-          ),
-          ChatTile(
-            imageUrl: AssetsImage.defaultImage,
-            name: "Denis Uwihirwe",
-            lastChat: "how are doing bro?",
-            lastTime: "08:43 PM",
-          ),
-        ],
+    ContactController contactController = Get.put(ContactController());
+    ProfileController profileController = Get.put(ProfileController());
+    return Obx(
+      () => ListView(
+        children:
+            contactController.chatRoomList
+                .map(
+                  (e) => InkWell(
+                    onTap: () {
+                      Get.to(
+                        ChatPage(
+                          userModel:
+                              (e.receiver!.id ==
+                                      profileController.currentUser.value.id
+                                  ? e.sender
+                                  : e.receiver)!,
+                        ),
+                      );
+                    },
+                    child: ChatTile(
+                      imageUrl:
+                          (e.receiver!.id ==
+                                  profileController.currentUser.value.id
+                              ? e.sender!.profileImage
+                              : e.receiver!.profileImage) ??
+                          AssetsImage.defaultImage,
+                      name:
+                          (e.receiver!.id ==
+                                  profileController.currentUser.value.id
+                              ? e.sender!.name
+                              : e.receiver!.name)!,
+                      lastChat: e.lastMessage ?? "Last Message",
+                      lastTime: e.lastMessageTimestamp ?? "Last time",
+                    ),
+                  ),
+                )
+                .toList(),
       ),
     );
   }
