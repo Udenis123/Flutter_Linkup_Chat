@@ -2,11 +2,12 @@ import 'package:chat_app/Config/Images.dart';
 import 'package:chat_app/Config/Strings.dart';
 import 'package:chat_app/Controller/ContactController.dart';
 import 'package:chat_app/Controller/ProfileController.dart';
+import 'package:chat_app/Groups/GroupPage.dart';
 import 'package:chat_app/Pages/HomePage/Widget/ChatsList.dart';
 import 'package:chat_app/Pages/HomePage/Widget/TabBar.dart';
 import 'package:chat_app/Pages/ProfilePage.dart/ProfilePage.dart';
-import 'package:chat_app/UserProfile/ProfilePage.dart';
 import 'package:flutter/material.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:get/get.dart';
 
 class Homepage extends StatefulWidget {
@@ -29,64 +30,57 @@ class _HomepageState extends State<Homepage> with TickerProviderStateMixin {
   Widget build(BuildContext context) {
     ProfileController profileController = Get.put(ProfileController());
     ContactController contactController = Get.put(ContactController());
-    return RefreshIndicator(
-      child: Scaffold(
-        appBar: AppBar(
-          backgroundColor: Theme.of(context).colorScheme.primaryContainer,
-          title: Text(
-            AppString.appName,
-            style: Theme.of(context).textTheme.headlineSmall,
-          ),
-          leading: Image.asset(AssetsImage.appIcon, width: 10),
-          actions: [
-            IconButton(onPressed: () {}, icon: Icon(Icons.search)),
-            IconButton(
-              onPressed: () async {
-                await profileController.getUserDetails();
-                Get.to(() => Profilepage());
-              },
-              icon: Icon(Icons.more_vert),
-            ),
-          ],
-          bottom: MyTabBar(tabController, context),
+    return Scaffold(
+      appBar: AppBar(
+        backgroundColor: Theme.of(context).colorScheme.primaryContainer,
+        title: Text(
+          AppString.appName,
+          style: Theme.of(context).textTheme.headlineSmall,
         ),
-        floatingActionButton: FloatingActionButton(
-          onPressed: () {
-            Get.toNamed("/contactPage");
-          },
-          backgroundColor: Theme.of(context).colorScheme.primary,
-          child: Icon(
-            Icons.add,
-            color: Theme.of(context).colorScheme.onSurface,
+        leading: Image.asset(AssetsImage.appIcon, width: 10),
+        actions: [
+          IconButton(onPressed: () {}, icon: Icon(Icons.search)),
+          IconButton(
+            onPressed: () async {
+              await profileController.getUserDetails();
+              Get.to(() => Profilepage());
+            },
+            icon: Icon(Icons.more_vert),
           ),
-        ),
-
-        body: TabBarView(
-          controller: tabController,
-          children: [
-            ChatsList(),
-            ListView(
-              children: [
-                ListTile(
-                  title: Text("Name  Rogers"),
-                  subtitle: Text("Chat with your friends"),
-                ),
-              ],
-            ),
-            ListView(
-              children: [
-                ListTile(
-                  title: Text("Name  Rogers"),
-                  subtitle: Text("Chat with your friends"),
-                ),
-              ],
-            ),
-          ],
+        ],
+        bottom: MyTabBar(tabController, context),
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          Get.toNamed("/contactPage");
+        },
+        backgroundColor: Theme.of(context).colorScheme.primary,
+        child: Icon(
+          FontAwesomeIcons.pen,
+          size: 20,
+          color: Theme.of(context).colorScheme.onSurface,
         ),
       ),
-      onRefresh: () {
-        return contactController.getChatRoomList();
-      },
+
+      body: TabBarView(
+        controller: tabController,
+        children: [
+          RefreshIndicator(
+            onRefresh: () => contactController.getChatRoomList(),
+            child:
+                ChatsList(), // <-- Make sure ChatsList contains a scrollable like ListView
+          ),
+          GroupPage(),
+          ListView(
+            children: [
+              ListTile(
+                title: Text("Name  Rogers"),
+                subtitle: Text("Chat with your friends"),
+              ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 }

@@ -1,14 +1,11 @@
 import 'package:chat_app/Config/PagePath.dart';
 import 'package:chat_app/Config/Themes.dart';
 import 'package:chat_app/Pages/SplacePage/SplacePage.dart';
-
-import 'package:chat_app/Pages/Welcome/WelcomePage.dart';
 import 'package:chat_app/firebase_options.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
+import 'package:fluttertoast/fluttertoast.dart';
 import 'package:get/route_manager.dart';
-import 'package:device_preview/device_preview.dart';
-import 'package:flutter/foundation.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -21,7 +18,8 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GetMaterialApp(
-      title: 'chatApp',
+      builder: FToastBuilder(),
+      title: 'LinkUp',
       theme: lightTheme,
       getPages: pagePath,
       darkTheme: darkTheme,

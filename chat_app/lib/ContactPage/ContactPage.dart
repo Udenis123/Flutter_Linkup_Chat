@@ -3,7 +3,9 @@ import 'package:chat_app/ContactPage/Widget/ContactSearch.dart';
 import 'package:chat_app/ContactPage/Widget/NewcontactTile.dart';
 import 'package:chat_app/Controller/ChatController.dart';
 import 'package:chat_app/Controller/ContactController.dart';
+import 'package:chat_app/Groups/NewGroup/NewGroup.dart';
 import 'package:chat_app/Pages/Chat/ChatPage.dart';
+import 'package:chat_app/Pages/HomePage/HomePage.dart';
 import 'package:chat_app/Pages/HomePage/Widget/ChatTile.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -45,7 +47,9 @@ class Contactpage extends StatelessWidget {
             NewContantTile(
               btnName: "New Group",
               icon: Icons.group_add,
-              ontap: () {},
+              ontap: () {
+                Get.to(NewGroup());
+              },
             ),
             SizedBox(height: 10),
             Row(

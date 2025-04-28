@@ -10,6 +10,7 @@ import 'package:get/get_core/src/get_main.dart';
 import 'package:get/get_instance/get_instance.dart';
 import 'package:get/get_rx/src/rx_types/rx_types.dart';
 import 'package:get/get_state_manager/get_state_manager.dart';
+import 'package:image_picker/image_picker.dart';
 
 class Profilepage extends StatelessWidget {
   const Profilepage({super.key});
@@ -80,7 +81,9 @@ class Profilepage extends StatelessWidget {
                                         onTap: () async {
                                           imagepath.value =
                                               await imagePickerController
-                                                  .pickImage();
+                                                  .pickImage(
+                                                    ImageSource.gallery,
+                                                  );
 
                                           print(
                                             "image picked: " + imagepath.value,

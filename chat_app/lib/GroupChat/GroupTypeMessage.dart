@@ -1,18 +1,22 @@
 import 'package:chat_app/Controller/ChatController.dart';
+import 'package:chat_app/Controller/GroupController.dart';
 import 'package:chat_app/Controller/ImagePicker.dart';
+import 'package:chat_app/GroupChat/GroupChat.dart';
+import 'package:chat_app/Model/GroupsModel.dart';
 import 'package:chat_app/Model/UserModel.dart';
 import 'package:chat_app/Widget/ImagepickerBottomSheet.dart';
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:get/get.dart';
 
-class TypeMessage extends StatelessWidget {
-  final UserModel userModel;
-  const TypeMessage({super.key, required this.userModel});
+class GroupTypeMessage extends StatelessWidget {
+  final GroupModel groupModel;
+  const GroupTypeMessage({super.key, required this.groupModel});
 
   @override
   Widget build(BuildContext context) {
     TextEditingController messageController = TextEditingController();
+    GroupController groupController = Get.put(GroupController());
     ChatController chatController = Get.put(ChatController());
     ImagePickerController imagePickerController = Get.put(
       ImagePickerController(),
@@ -107,13 +111,16 @@ class TypeMessage extends StatelessWidget {
                     if (message.value != "" ||
                         chatController.selectedImagePath.value != "" ||
                         chatController.selectedVideoPath.value != "") {
-                      chatController.sendMessage(
-                        userModel.id!,
-                        messageController.text,
-                        userModel,
+                      groupController.sendGroupMessage(
+                        message.value,
+                        groupModel.id!,
+                        chatController.selectedImagePath.value,
+                        chatController.selectedVideoPath.value,
                       );
                       messageController.clear();
                       message.value = "";
+                      chatController.selectedImagePath.value = "";
+                      chatController.selectedVideoPath.value = "";
                     }
                   },
                 ),

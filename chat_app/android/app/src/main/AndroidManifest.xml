@@ -10,7 +10,7 @@
     <!-- Application -->
     <application
         android:name="${applicationName}"
-        android:label="chat_app"
+        android:label="Link Up"
         android:icon="@mipmap/ic_launcher"
         android:enableOnBackInvokedCallback="true">
 

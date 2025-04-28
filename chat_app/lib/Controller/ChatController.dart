@@ -1,4 +1,4 @@
-import 'package:chat_app/Controller/AuthController.dart';
+import 'package:chat_app/Controller/ContactController.dart';
 import 'package:chat_app/Controller/ProfileController.dart';
 import 'package:chat_app/Model/ChatModel.dart';
 import 'package:chat_app/Model/ChatRoomModel.dart';
@@ -14,9 +14,11 @@ class ChatController extends GetxController {
   final auth = FirebaseAuth.instance;
   final db = FirebaseFirestore.instance;
   ProfileController profileController = Get.put(ProfileController());
+  ContactController contactController = Get.put(ContactController());
   RxBool isLoading = false.obs;
 
   RxString selectedImagePath = "".obs;
+  RxString selectedVideoPath = "".obs;
 
   String getRoomId(String targetUserId) {
     String currentUserId = auth.currentUser!.uid;
@@ -67,10 +69,15 @@ class ChatController extends GetxController {
     );
 
     RxString imageUrl = "".obs;
+    RxString mediaUrl = "".obs;
 
     if (selectedImagePath.value.isNotEmpty) {
       imageUrl.value = await profileController.uploadFileToCloudinaryUnsigned(
         selectedImagePath.value,
+      );
+    } else if (selectedVideoPath.value.isNotEmpty) {
+      mediaUrl.value = await profileController.uploadVideoToCloudinary(
+        selectedVideoPath.value,
       );
     }
 
@@ -78,6 +85,7 @@ class ChatController extends GetxController {
       id: chatId,
       message: message,
       imageUrl: imageUrl.value,
+      videoUrl: mediaUrl.value,
       senderId: auth.currentUser!.uid,
       receiverId: targetUserId,
       senderName: profileController.currentUser.value.name,
@@ -102,7 +110,9 @@ class ChatController extends GetxController {
           .doc(chatId)
           .set(newChat.toJson());
       await db.collection("chats").doc(roomId).set(roomDetails.toJson());
-      selectedImagePath.value="";
+      await contactController.saveContact(targetUser);
+      selectedImagePath.value = "";
+      selectedVideoPath.value = "";
     } catch (e) {
       print(e);
     }

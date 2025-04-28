@@ -2,36 +2,40 @@ import 'dart:io';
 
 import 'package:chat_app/Config/Images.dart';
 import 'package:chat_app/Controller/ChatController.dart';
-import 'package:chat_app/Controller/ContactController.dart';
+import 'package:chat_app/Controller/GroupController.dart';
+
 import 'package:chat_app/Controller/ProfileController.dart';
-import 'package:chat_app/Model/ChatModel.dart';
-import 'package:chat_app/Model/UserModel.dart';
+import 'package:chat_app/GroupChat/GroupTypeMessage.dart';
+
+import 'package:chat_app/Model/GroupsModel.dart';
 import 'package:chat_app/Pages/Chat/Widget/ChatBubble.dart';
-import 'package:chat_app/Pages/Chat/Widget/TypeMessage.dart';
-import 'package:chat_app/UserProfile/ProfilePage.dart';
+
 import 'package:chat_app/Widget/VideoPreviewWidget.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get_state_manager/src/rx_flutter/rx_obx_widget.dart';
 import 'package:get/instance_manager.dart';
 import 'package:get/route_manager.dart';
 import 'package:get/utils.dart';
-import 'package:intl/intl.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 
-class ChatPage extends StatelessWidget {
-  final UserModel userModel;
-  const ChatPage({super.key, required this.userModel});
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flutter/foundation.dart';
+import 'package:intl/intl.dart';
+
+class GroupChatPage extends StatelessWidget {
+  final GroupModel groupModel;
+  const GroupChatPage({super.key, required this.groupModel});
 
   @override
   Widget build(BuildContext context) {
     ChatController chatController = Get.put(ChatController());
+    GroupController groupController =Get.put(GroupController());
     ProfileController profileController = Get.put(ProfileController());
 
     return Scaffold(
       appBar: AppBar(
         leading: InkWell(
           onTap: () {
-            Get.to(UserProfilepage(userModel: userModel));
+            // Get.to(UserProfilepage(userModel: userModel));
           },
           child: Padding(
             padding: const EdgeInsets.only(top: 5, left: 10, bottom: 5),
@@ -47,7 +51,10 @@ class ChatPage extends StatelessWidget {
               ),
               child: ClipOval(
                 child: CachedNetworkImage(
-                  imageUrl: userModel.profileImage ?? AssetsImage.defaultImage,
+                  imageUrl:
+                      groupModel.profileUrl == ""
+                          ? AssetsImage.defaultImage
+                          : groupModel.profileUrl!,
                   fit: BoxFit.cover,
                   placeholder: (context, url) => CircularProgressIndicator(),
                   errorWidget: (context, url, error) => Icon(Icons.error),
@@ -60,13 +67,13 @@ class ChatPage extends StatelessWidget {
           splashColor: Colors.transparent,
           highlightColor: Colors.transparent,
           onTap: () {
-            Get.to(UserProfilepage(userModel: userModel));
+            // Get.to(UserProfilepage(userModel: userModel));
           },
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                userModel.name ?? "User Name",
+                groupModel.name ?? "Group Name",
                 style: Theme.of(context).textTheme.bodyMedium,
               ),
               Text("Online", style: Theme.of(context).textTheme.labelSmall),
@@ -89,7 +96,7 @@ class ChatPage extends StatelessWidget {
               child: Stack(
                 children: [
                   StreamBuilder(
-                    stream: chatController.getMessages(userModel.id!),
+                    stream: groupController.getGroupMessage(groupModel.id!),
                     builder: (context, snapshot) {
                       if (snapshot.connectionState == ConnectionState.waiting) {
                         return Center(child: CircularProgressIndicator());
@@ -125,7 +132,6 @@ class ChatPage extends StatelessWidget {
                       }
                     },
                   ),
-
                   Obx(
                     () =>
                         (chatController.selectedImagePath.value != "" ||
@@ -193,10 +199,16 @@ class ChatPage extends StatelessWidget {
               ),
             ),
 
-            TypeMessage(userModel: userModel),
+            GroupTypeMessage(groupModel: groupModel),
           ],
         ),
       ),
     );
+  }
+
+  @override
+  void debugFillProperties(DiagnosticPropertiesBuilder properties) {
+    super.debugFillProperties(properties);
+    properties.add(DiagnosticsProperty<GroupModel>('groupModel', groupModel));
   }
 }

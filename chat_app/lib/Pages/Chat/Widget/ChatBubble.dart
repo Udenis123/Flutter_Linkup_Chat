@@ -1,7 +1,6 @@
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:chat_app/Controller/ImagePicker.dart';
+import 'package:chat_app/Widget/VideoPreviewWidget.dart';
 import 'package:flutter/material.dart';
-import 'package:get/get.dart';
 
 class Chatbubble extends StatelessWidget {
   final String message;
@@ -9,6 +8,7 @@ class Chatbubble extends StatelessWidget {
   final String time;
   final String status;
   final String imageUrl;
+  final String videoUrl;
 
   const Chatbubble({
     super.key,
@@ -17,24 +17,95 @@ class Chatbubble extends StatelessWidget {
     required this.time,
     required this.status,
     required this.imageUrl,
+    required this.videoUrl,
   });
 
   @override
   Widget build(BuildContext context) {
-    void _showImageDialog(BuildContext context, String url) {
+    void _showMediaDialog(BuildContext context, String url, bool isVideo) {
       showDialog(
         context: context,
+        useSafeArea: false, // Allow content to extend into safe area
+        barrierColor: Colors.black, // Full black background
         builder:
-            (ctx) => Dialog(
-              backgroundColor: Colors.transparent,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
+            (ctx) => Scaffold(
+              backgroundColor: Colors.black,
+              body: Stack(
+                fit: StackFit.expand,
                 children: [
-                  GestureDetector(
-                    onTap: () => Navigator.of(context).pop(),
-                    child: CachedNetworkImage(
-                      imageUrl: url,
-                      fit: BoxFit.contain,
+                  // Main content
+                  Center(
+                    child: Container(
+                      width: double.infinity,
+                      height: double.infinity,
+                      child:
+                          isVideo
+                              ? VideoPlayerWidgetOn(videoUrl: url)
+                              : InteractiveViewer(
+                                minScale: 0.5,
+                                maxScale: 3.0,
+                                child: CachedNetworkImage(
+                                  imageUrl: url,
+                                  fit: BoxFit.contain,
+                                  placeholder:
+                                      (context, url) => Center(
+                                        child: CircularProgressIndicator(),
+                                      ),
+                                  errorWidget:
+                                      (context, url, error) => Column(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Icon(
+                                            Icons.error,
+                                            color: Colors.red,
+                                            size: 50,
+                                          ),
+                                          Text(
+                                            "Failed to load image",
+                                            style: TextStyle(
+                                              color: Colors.white,
+                                            ),
+                                          ),
+                                          TextButton(
+                                            onPressed: () {
+                                              CachedNetworkImage.evictFromCache(
+                                                url,
+                                              );
+                                              Navigator.of(context).pop();
+                                              _showMediaDialog(
+                                                context,
+                                                url,
+                                                false,
+                                              );
+                                            },
+                                            child: Text("Retry"),
+                                          ),
+                                        ],
+                                      ),
+                                ),
+                              ),
+                    ),
+                  ),
+
+                  // Close button
+                  Positioned(
+                    top: MediaQuery.of(context).padding.top + 40,
+                    left: 16,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: Colors.black.withOpacity(0.5),
+                        shape: BoxShape.circle,
+                      ),
+                      child: IconButton(
+                        icon: Icon(
+                          Icons.arrow_back,
+                          color: Colors.white,
+                          size: 24,
+                        ),
+                        onPressed: () {
+                          Navigator.of(context).pop();
+                        },
+                      ),
                     ),
                   ),
                 ],
@@ -50,9 +121,12 @@ class Chatbubble extends StatelessWidget {
             isComming ? CrossAxisAlignment.start : CrossAxisAlignment.end,
         children: [
           Container(
-            padding: imageUrl == "" ? EdgeInsets.all(8) : EdgeInsets.all(3),
+            padding:
+                imageUrl == "" && videoUrl == ""
+                    ? EdgeInsets.all(8)
+                    : EdgeInsets.all(3),
             constraints: BoxConstraints(
-              maxWidth: MediaQuery.sizeOf(context).width / 1.3,
+              maxWidth: MediaQuery.sizeOf(context).width / 1.5,
             ),
             decoration: BoxDecoration(
               color:
@@ -63,37 +137,37 @@ class Chatbubble extends StatelessWidget {
                   isComming
                       ? BorderRadius.only(
                         topLeft:
-                            imageUrl == ""
-                                ? Radius.circular(20)
-                                : Radius.circular(5),
+                            imageUrl != "" || videoUrl != ""
+                                ? Radius.circular(5)
+                                : Radius.circular(20),
                         topRight:
-                            imageUrl == ""
-                                ? Radius.circular(20)
-                                : Radius.circular(5),
+                            imageUrl != "" || videoUrl != ""
+                                ? Radius.circular(5)
+                                : Radius.circular(20),
                         bottomLeft: Radius.circular(0),
                         bottomRight:
-                            imageUrl == ""
-                                ? Radius.circular(20)
-                                : Radius.circular(5),
+                            imageUrl != "" || videoUrl != ""
+                                ? Radius.circular(5)
+                                : Radius.circular(20),
                       )
                       : BorderRadius.only(
                         topLeft:
-                            imageUrl == ""
-                                ? Radius.circular(20)
-                                : Radius.circular(5),
+                            imageUrl != "" || videoUrl != ""
+                                ? Radius.circular(5)
+                                : Radius.circular(20),
                         topRight:
-                            imageUrl == ""
-                                ? Radius.circular(20)
-                                : Radius.circular(5),
+                            imageUrl != "" || videoUrl != ""
+                                ? Radius.circular(5)
+                                : Radius.circular(20),
                         bottomLeft:
-                            imageUrl == ""
-                                ? Radius.circular(20)
-                                : Radius.circular(5),
+                            imageUrl != "" || videoUrl != ""
+                                ? Radius.circular(5)
+                                : Radius.circular(20),
                         bottomRight: Radius.circular(0),
                       ),
             ),
             child:
-                imageUrl == ""
+                videoUrl == "" && imageUrl == ""
                     ? Text(
                       message,
                       style: TextStyle(fontSize: 17, fontFamily: "Poppins"),
@@ -103,19 +177,55 @@ class Chatbubble extends StatelessWidget {
                       children: [
                         ClipRRect(
                           borderRadius: BorderRadius.circular(5),
-                          child: GestureDetector(
-                            onTap: () => _showImageDialog(context, imageUrl),
-                            child: ClipRRect(
-                              borderRadius: BorderRadius.circular(5),
-                              child: CachedNetworkImage(
-                                imageUrl: imageUrl,
-                                fit: BoxFit.cover,
-                                placeholder:
-                                    (context, url) =>
-                                        CircularProgressIndicator(),
-                                errorWidget:
-                                    (context, url, error) => Icon(Icons.error),
-                              ),
+                          child: Container(
+                            constraints: BoxConstraints(
+                              maxWidth: MediaQuery.of(context).size.width / 1.5,
+                              maxHeight: 200,
+                            ),
+                            width: MediaQuery.of(context).size.width / 1.5,
+
+                            child: GestureDetector(
+                              onTap:
+                                  () =>
+                                      videoUrl != ""
+                                          ? _showMediaDialog(
+                                            context,
+                                            videoUrl,
+                                            true,
+                                          )
+                                          : _showMediaDialog(
+                                            context,
+                                            imageUrl,
+                                            false,
+                                          ),
+                              child:
+                                  videoUrl != ""
+                                      ? Stack(
+                                        alignment: Alignment.center,
+                                        children: [
+                                          VideoPlayerWidget(videoUrl: videoUrl),
+                                          Container(
+                                            color: Colors.black26,
+                                            child: Icon(
+                                              Icons.play_circle_fill,
+                                              color: Colors.white,
+                                              size: 50,
+                                            ),
+                                          ),
+                                        ],
+                                      )
+                                      : CachedNetworkImage(
+                                        imageUrl: imageUrl,
+                                        fit: BoxFit.cover,
+                                        width: double.infinity,
+                                        height: double.infinity,
+                                        placeholder:
+                                            (context, url) =>
+                                                CircularProgressIndicator(),
+                                        errorWidget:
+                                            (context, url, error) =>
+                                                Icon(Icons.error),
+                                      ),
                             ),
                           ),
                         ),
@@ -128,7 +238,6 @@ class Chatbubble extends StatelessWidget {
           Row(
             mainAxisAlignment:
                 isComming ? MainAxisAlignment.start : MainAxisAlignment.end,
-
             children: [
               isComming
                   ? Text(time, style: Theme.of(context).textTheme.labelMedium)

@@ -1,10 +1,7 @@
 import 'dart:io';
 
 import 'package:chat_app/Model/UserModel.dart';
-import 'package:chat_app/UserProfile/UpdateProfile.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:cloudinary_flutter/cloudinary_context.dart';
-import 'package:cloudinary_sdk/cloudinary_sdk.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:get/get.dart';
@@ -16,7 +13,6 @@ import 'package:path/path.dart' as path;
 class ProfileController extends GetxController {
   final auth = FirebaseAuth.instance;
   final db = FirebaseFirestore.instance;
-
 
   RxBool isLoading = false.obs;
   final store = FirebaseStorage.instance;
@@ -53,21 +49,22 @@ class ProfileController extends GetxController {
   ) async {
     try {
       isLoading.value = true;
-      final imageLink = await  uploadFileToCloudinaryUnsigned(imageUrl);
-    
+      final imageLink = await uploadFileToCloudinaryUnsigned(imageUrl);
+
       final updatedUser = UserModel(
         id: auth.currentUser!.uid,
         email: auth.currentUser!.email,
         name: name,
         phoneNumber: number,
         about: about,
-        profileImage: imageUrl == "" ? currentUser.value.profileImage : imageLink,
+        profileImage:
+            imageUrl == "" ? currentUser.value.profileImage : imageLink,
       );
       await db
           .collection("users")
           .doc(auth.currentUser!.uid)
           .set(updatedUser.toJson());
-          
+
       print(imageLink);
     } catch (e) {
       print("Error: $e");
@@ -77,57 +74,108 @@ class ProfileController extends GetxController {
   }
 
   Future<String?> uploadFileToFirebase(String imagePath) async {
-    if(imagePath.isEmpty||imagePath==""){ 
+    if (imagePath.isEmpty || imagePath == "") {
       return "";
     }
-  try {
-    final file = File(imagePath);
-    final ref = store.ref().child("files/${DateTime.now().millisecondsSinceEpoch}.jpg");
-    final uploadTask = await ref.putFile(file);
-    final downloadImageUrl = await uploadTask.ref.getDownloadURL();
-    return downloadImageUrl;
-  } catch (ex) {
-    print("Upload error: $ex");
-    return "";
-  }
-}
- Future<String> uploadFileToCloudinaryUnsigned(String imagePath) async {
-  if(!imagePath.isEmpty|| imagePath!=""){ 
- 
-  try {
-    final uploadPreset = 'chat_app'; 
-    final cloudName = 'dxxqpejtl'; 
-    final file = File(imagePath);
-
-    final uri = Uri.parse('https://api.cloudinary.com/v1_1/$cloudName/image/upload');
-
-    final request = http.MultipartRequest('POST', uri)
-      ..fields['upload_preset'] = uploadPreset
-      ..files.add(await http.MultipartFile.fromPath(
-        'file',
-        file.path,
-        filename: path.basename(file.path),
-      ));
-
-    final response = await request.send();
-    final resBody = await response.stream.bytesToString();
-
-    if (response.statusCode == 200) {
-      final secureUrl = RegExp(r'"secure_url":"(.*?)"').firstMatch(resBody)?.group(1);
-      print('✅ Upload successful! URL: $secureUrl');
-      return secureUrl!;
-    } else {
-      print('❌ Upload failed with status: ${response.statusCode}');
-      print(resBody);
+    try {
+      final file = File(imagePath);
+      final ref = store.ref().child(
+        "files/${DateTime.now().millisecondsSinceEpoch}.jpg",
+      );
+      final uploadTask = await ref.putFile(file);
+      final downloadImageUrl = await uploadTask.ref.getDownloadURL();
+      return downloadImageUrl;
+    } catch (ex) {
+      print("Upload error: $ex");
       return "";
     }
-  } catch (e) {
-    print('⚠️ Error uploading to Cloudinary: $e');
+  }
+
+  Future<String> uploadFileToCloudinaryUnsigned(String imagePath) async {
+    if (!imagePath.isEmpty || imagePath != "") {
+      try {
+        final uploadPreset = 'chat_app';
+        final cloudName = 'dxxqpejtl';
+        final file = File(imagePath);
+
+        final uri = Uri.parse(
+          'https://api.cloudinary.com/v1_1/$cloudName/image/upload',
+        );
+
+        final request =
+            http.MultipartRequest('POST', uri)
+              ..fields['upload_preset'] = uploadPreset
+              ..files.add(
+                await http.MultipartFile.fromPath(
+                  'file',
+                  file.path,
+                  filename: path.basename(file.path),
+                ),
+              );
+
+        final response = await request.send();
+        final resBody = await response.stream.bytesToString();
+
+        if (response.statusCode == 200) {
+          final secureUrl = RegExp(
+            r'"secure_url":"(.*?)"',
+          ).firstMatch(resBody)?.group(1);
+          print('✅ Upload successful! URL: $secureUrl');
+          return secureUrl!;
+        } else {
+          print('❌ Upload failed with status: ${response.statusCode}');
+          print(resBody);
+          return "";
+        }
+      } catch (e) {
+        print('⚠️ Error uploading to Cloudinary: $e');
+        return "";
+      }
+    }
     return "";
   }
- }
- return "";
- }
- 
 
+  Future<String> uploadVideoToCloudinary(String videoPath) async {
+    if (videoPath.isNotEmpty) {
+      try {
+        final uploadPreset = 'chat_app';
+        final cloudName = 'dxxqpejtl';
+        final file = File(videoPath);
+
+        final uri = Uri.parse(
+          'https://api.cloudinary.com/v1_1/$cloudName/video/upload',
+        );
+
+        final request =
+            http.MultipartRequest('POST', uri)
+              ..fields['upload_preset'] = uploadPreset
+              ..files.add(
+                await http.MultipartFile.fromPath(
+                  'file',
+                  file.path,
+                  filename: path.basename(file.path),
+                ),
+              );
+
+        final response = await request.send();
+        final resBody = await response.stream.bytesToString();
+
+        if (response.statusCode == 200) {
+          final secureUrl = RegExp(
+            r'"secure_url":"(.*?)"',
+          ).firstMatch(resBody)?.group(1);
+          print('✅ Video upload successful! URL: $secureUrl');
+          return secureUrl!;
+        } else {
+          print('❌ Video upload failed with status: ${response.statusCode}');
+          print(resBody);
+          return "";
+        }
+      } catch (e) {
+        print('⚠️ Error uploading video to Cloudinary: $e');
+        return "";
+      }
+    }
+    return "";
+  }
 }
