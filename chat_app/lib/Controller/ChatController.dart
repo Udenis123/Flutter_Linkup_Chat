@@ -94,7 +94,12 @@ class ChatController extends GetxController {
 
     var roomDetails = ChatRoomModel(
       id: roomId,
-      lastMessage: message,
+      lastMessage:
+          imageUrl.value == "" && mediaUrl.value == ""
+              ? message
+              : imageUrl.value != ""
+              ? "📷📷"
+              : "🎥🎥",
       lastMessageTimestamp: nowTime,
       sender: sender,
       receiver: receiver,
@@ -133,5 +138,20 @@ class ChatController extends GetxController {
                   .map((docs) => ChatModel.fromJson(docs.data()))
                   .toList(),
         );
+  }
+
+  Stream<UserModel> getStatus(String uuid) {
+    return db.collection('users').doc(uuid).snapshots().map((event) {
+      return UserModel.fromJson(event.data()!);
+    });
+  }
+
+  // Set typing status for the current user
+  Future<void> setTypingStatus(bool isTyping) async {
+    final user = auth.currentUser;
+    if (user == null) return;
+    await db.collection("users").doc(user.uid).update({
+      "status": isTyping ? "is typing..." : "Online",
+    });
   }
 }

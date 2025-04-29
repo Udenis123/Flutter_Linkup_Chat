@@ -69,7 +69,80 @@ class ChatPage extends StatelessWidget {
                 userModel.name ?? "User Name",
                 style: Theme.of(context).textTheme.bodyMedium,
               ),
-              Text("Online", style: Theme.of(context).textTheme.labelSmall),
+              StreamBuilder<UserModel>(
+                stream: chatController.getStatus(userModel.id!),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return Text("Loading...");
+                  }
+                  if (snapshot.hasError) {
+                    return Text(
+                      "No connection",
+                      style: TextStyle(color: Colors.red, fontSize: 12),
+                    );
+                  }
+                  if (!snapshot.hasData || snapshot.data == null) {
+                    return Text("Offline");
+                  }
+                  final status = snapshot.data!.status ?? "Offline";
+                  if (status == "is typing...") {
+                    return Text(
+                      "is typing...",
+                      style: TextStyle(
+                        color: Colors.blue,
+                        fontSize: 12,
+                        fontStyle: FontStyle.italic,
+                      ),
+                    );
+                  } else if (status == "Online") {
+                    return Text(
+                      "Online",
+                      style: TextStyle(color: Colors.green, fontSize: 12),
+                    );
+                  } else {
+                    // Parse lastOnlineStatus
+                    String? lastOnlineStr = snapshot.data!.lastOnlineStatus;
+                    if (lastOnlineStr == null) {
+                      return Text(
+                        "Offline",
+                        style: TextStyle(color: Colors.grey, fontSize: 12),
+                      );
+                    }
+                    DateTime lastOnline;
+                    try {
+                      lastOnline = DateTime.parse(lastOnlineStr);
+                    } catch (e) {
+                      return Text(
+                        "Offline",
+                        style: TextStyle(color: Colors.grey, fontSize: 12),
+                      );
+                    }
+                    final now = DateTime.now();
+                    final today = DateTime(now.year, now.month, now.day);
+                    final lastOnlineDay = DateTime(
+                      lastOnline.year,
+                      lastOnline.month,
+                      lastOnline.day,
+                    );
+                    final difference = today.difference(lastOnlineDay).inDays;
+
+                    String lastSeenText;
+                    if (difference == 0) {
+                      lastSeenText =
+                          "last seen at ${DateFormat('hh:mm a').format(lastOnline)}";
+                    } else if (difference == 1) {
+                      lastSeenText = "last seen yesterday";
+                    } else {
+                      lastSeenText =
+                          "last seen on ${DateFormat('yyyy-MM-dd').format(lastOnline)}";
+                    }
+                    return Text(
+                      lastSeenText,
+                      style: TextStyle(color: Colors.grey, fontSize: 12),
+                    );
+                  }
+                },
+              ),
             ],
           ),
         ),

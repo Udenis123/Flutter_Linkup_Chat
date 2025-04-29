@@ -99,6 +99,10 @@ class GroupController extends GetxController {
     var chatId = Uuid().v6();
 
     if (imagePath == "" && videoPath == "") {
+      var groupDetails = GroupModel(
+        lastMessageTime: DateTime.now().toString(),
+        lastmessage: message,
+      );
       var newChat = ChatModel(
         id: chatId,
         message: message,
@@ -112,6 +116,11 @@ class GroupController extends GetxController {
           .collection("messages")
           .doc(chatId)
           .set(newChat.toJson());
+      await db.collection("groups").doc(groupId).update({
+        "lastmessage": message,
+        "lastMessageTime": DateTime.now().toString(),
+        "lastMessageBy": profileController.currentUser.value.name,
+      });
     } else if (imagePath.isNotEmpty && videoPath == "") {
       String imageUrl = await profileController.uploadFileToCloudinaryUnsigned(
         imagePath,
@@ -130,6 +139,11 @@ class GroupController extends GetxController {
           .collection("messages")
           .doc(chatId)
           .set(newChat.toJson());
+      await db.collection("groups").doc(groupId).update({
+        "lastmessage": "📷📷",
+        "lastMessageTime": DateTime.now().toString(),
+        "lastMessageBy": profileController.currentUser.value.name,
+      });
     } else {
       String videoUrl = await profileController.uploadVideoToCloudinary(
         videoPath,
@@ -148,6 +162,11 @@ class GroupController extends GetxController {
           .collection("messages")
           .doc(chatId)
           .set(newChat.toJson());
+      await db.collection("groups").doc(groupId).update({
+        "lastmessage": "🎦🎦",
+        "lastMessageTime": DateTime.now().toString(),
+        "lastMessageBy": profileController.currentUser.value.name,
+      });
     }
   }
 
@@ -164,5 +183,67 @@ class GroupController extends GetxController {
                   .map((doc) => ChatModel.fromJson(doc.data()))
                   .toList(),
         );
+  }
+
+  Future<void> deleteGroup(String groupId) async {
+    await db.collection("groups").doc(groupId).delete();
+    getGroups();
+  }
+
+  Future<void> leaveGroup(String groupId) async {
+    await db.collection("groups").doc(groupId).update({
+      "members": FieldValue.arrayRemove([
+        {
+          "id": auth.currentUser!.uid,
+          "name": profileController.currentUser.value.name,
+          "email": profileController.currentUser.value.email,
+          "profileImage": profileController.currentUser.value.profileImage,
+          "role": "member",
+        },
+      ]),
+    });
+    getGroups();
+  }
+
+  Future<void> addMemberToGroup(String groupId, UserModel user) async {
+    isLoading.value = true;
+    await db.collection("groups").doc(groupId).update({
+      "members": FieldValue.arrayUnion([user.toJson()]),
+    });
+    getGroups();
+    isLoading.value = false;
+  }
+
+  Future<void> removeMemberFromGroup(String groupId, UserModel user) async {
+    await db.collection("groups").doc(groupId).update({
+      "members": FieldValue.arrayRemove([user.toJson()]),
+    });
+    getGroups();
+  }
+
+  Stream<List<GroupModel>> groupListStream(String userId) {
+    return db
+        .collection('groups')
+        .orderBy("lastMessageTime", descending: true)
+        .snapshots()
+        .map((snapshot) {
+          var groups =
+              snapshot.docs
+                  .map((doc) => GroupModel.fromJson(doc.data()))
+                  .where(
+                    (group) =>
+                        group.members != null &&
+                        group.members!.any((member) => member.id == userId),
+                  )
+                  .toList();
+
+          groups.sort((a, b) {
+            if (a.lastMessageTime == null) return 1;
+            if (b.lastMessageTime == null) return -1;
+            return b.lastMessageTime!.compareTo(a.lastMessageTime!);
+          });
+
+          return groups;
+        });
   }
 }

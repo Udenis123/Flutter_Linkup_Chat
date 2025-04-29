@@ -78,6 +78,7 @@ class Contactpage extends StatelessWidget {
                                       print("😍😍😍" + roomId);
                                     },
                                     child: ChatTile(
+                                      userId: e.id!,
                                       imageUrl:
                                           e.profileImage ??
                                           AssetsImage.defaultImage,

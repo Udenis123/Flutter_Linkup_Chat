@@ -5,10 +5,13 @@ import 'package:chat_app/Controller/ChatController.dart';
 import 'package:chat_app/Controller/GroupController.dart';
 
 import 'package:chat_app/Controller/ProfileController.dart';
+import 'package:chat_app/GroupChat/GroupChatBublle.dart';
 import 'package:chat_app/GroupChat/GroupTypeMessage.dart';
 
 import 'package:chat_app/Model/GroupsModel.dart';
+import 'package:chat_app/Model/UserModel.dart';
 import 'package:chat_app/Pages/Chat/Widget/ChatBubble.dart';
+import 'package:chat_app/Pages/GroupInfo/GroupInfo.dart';
 
 import 'package:chat_app/Widget/VideoPreviewWidget.dart';
 import 'package:flutter/material.dart';
@@ -28,14 +31,15 @@ class GroupChatPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     ChatController chatController = Get.put(ChatController());
-    GroupController groupController =Get.put(GroupController());
+    GroupController groupController = Get.put(GroupController());
     ProfileController profileController = Get.put(ProfileController());
 
     return Scaffold(
       appBar: AppBar(
         leading: InkWell(
           onTap: () {
-            // Get.to(UserProfilepage(userModel: userModel));
+            Get.to(GroupInfo(groupModel: groupModel));
+            groupController.getGroups();
           },
           child: Padding(
             padding: const EdgeInsets.only(top: 5, left: 10, bottom: 5),
@@ -67,7 +71,8 @@ class GroupChatPage extends StatelessWidget {
           splashColor: Colors.transparent,
           highlightColor: Colors.transparent,
           onTap: () {
-            // Get.to(UserProfilepage(userModel: userModel));
+            Get.to(GroupInfo(groupModel: groupModel));
+            groupController.getGroups();
           },
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -117,8 +122,19 @@ class GroupChatPage extends StatelessWidget {
                             String formattedTime = DateFormat(
                               'hh:mm a',
                             ).format(timestamp);
-                            return Chatbubble(
-                              message: snapshot.data![index].message!,
+                            // Find sender in group members
+                            final sender = groupModel.members.firstWhere(
+                              (member) =>
+                                  member.id == snapshot.data![index].senderId,
+                              orElse:
+                                  () => UserModel(
+                                    name: "Unknown",
+                                    email: "",
+                                    profileImage: "",
+                                  ),
+                            );
+                            return GroupChatbubble(
+                              message: snapshot.data![index].message ?? "",
                               imageUrl: snapshot.data![index].imageUrl ?? "",
                               videoUrl: snapshot.data![index].videoUrl ?? "",
                               isComming:
@@ -126,6 +142,9 @@ class GroupChatPage extends StatelessWidget {
                                   profileController.currentUser.value.id,
                               time: formattedTime,
                               status: "read",
+                              senderName: sender.name ?? "Unknown",
+                              senderEmail: sender.email ?? "",
+                              senderProfileImage: sender.profileImage ?? "",
                             );
                           },
                         );

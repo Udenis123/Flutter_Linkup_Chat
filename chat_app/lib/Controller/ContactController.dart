@@ -87,4 +87,18 @@ class ContactController extends GetxController {
                   .toList(),
         );
   }
+
+  Stream<List<ChatRoomModel>> chatRoomStream() {
+    return db
+        .collection('chats')
+        .orderBy("timestamp", descending: true)
+        .snapshots()
+        .map(
+          (snapshot) =>
+              snapshot.docs
+                  .map((doc) => ChatRoomModel.fromJson(doc.data()))
+                  .where((e) => e.id!.contains(auth.currentUser!.uid))
+                  .toList(),
+        );
+  }
 }

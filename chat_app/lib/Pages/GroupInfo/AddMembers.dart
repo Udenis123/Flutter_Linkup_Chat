@@ -1,15 +1,16 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:chat_app/Config/Images.dart';
 import 'package:chat_app/Controller/ContactController.dart';
 import 'package:chat_app/Controller/GroupController.dart';
-import 'package:chat_app/Groups/NewGroup/GroupTitle.dart';
 import 'package:chat_app/Groups/NewGroup/SelectedMemberList.dart';
+import 'package:chat_app/Model/GroupsModel.dart';
+import 'package:chat_app/Pages/GroupInfo/GroupInfo.dart';
 import 'package:chat_app/Pages/HomePage/Widget/ChatTile.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
-class NewGroup extends StatelessWidget {
-  const NewGroup({super.key});
+class AddMembers extends StatelessWidget {
+  final GroupModel groupModel;
+  const AddMembers({super.key, required this.groupModel});
 
   @override
   Widget build(BuildContext context) {
@@ -22,15 +23,27 @@ class NewGroup extends StatelessWidget {
               groupController.groupMembers.isEmpty
                   ? Theme.of(context).colorScheme.primaryContainer
                   : Theme.of(context).colorScheme.primary,
-          onPressed: () {
+          onPressed: () async {
             if (groupController.groupMembers.isEmpty) {
-              Get.snackbar("", "Please select atleastOne Member");
+              Get.snackbar("", "Please select at least one member");
             } else {
-              Get.to(GroupTitle(), transition: Transition.rightToLeft);
+              for (var member in groupController.groupMembers) {
+                await groupController.addMemberToGroup(groupModel.id!, member);
+              }
+              // Fetch updated group data
+              final updatedGroup = await groupController.db
+                  .collection('groups')
+                  .doc(groupModel.id)
+                  .get()
+                  .then((doc) => GroupModel.fromJson(doc.data()!));
+
+              // Navigate to updated GroupInfo
+              Get.offAll(() => GroupInfo(groupModel: updatedGroup));
+              Get.snackbar("Success", "Members added to group");
             }
           },
           child: Icon(
-            Icons.arrow_forward,
+            Icons.add,
             color: Theme.of(context).colorScheme.onSurface,
           ),
         ),
@@ -64,23 +77,33 @@ class NewGroup extends StatelessWidget {
                   if (snapshot.data == null || snapshot.data!.isEmpty) {
                     return Center(child: Text("No messages yet"));
                   } else {
+                    final groupMemberIds =
+                        groupModel.members?.map((m) => m.id).toSet() ?? {};
+                    final availableContacts =
+                        snapshot.data!
+                            .where(
+                              (contact) => !groupMemberIds.contains(contact.id),
+                            )
+                            .toList();
+
                     return ListView.builder(
-                      itemCount: snapshot.data!.length,
+                      itemCount: availableContacts.length,
                       itemBuilder: (context, index) {
+                        final contact = availableContacts[index];
                         return InkWell(
                           splashColor: const Color.fromARGB(255, 101, 94, 94),
                           highlightColor: Colors.transparent,
                           onTap: () {
-                            groupController.selectMember(snapshot.data![index]);
+                            groupController.selectMember(contact);
                           },
                           child: ChatTile(
-                            userId: snapshot.data![index].id!,
-                            lastChat: snapshot.data![index].about! ?? "",
+                            userId: contact.id!,
+                            lastChat: contact.about ?? "",
                             lastTime: "",
                             imageUrl:
-                                snapshot.data![index].profileImage ??
+                                contact.profileImage ??
                                 AssetsImage.defaultImage,
-                            name: snapshot.data![index].name!,
+                            name: contact.name!,
                           ),
                         );
                       },

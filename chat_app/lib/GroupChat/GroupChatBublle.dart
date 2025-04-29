@@ -2,15 +2,18 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:chat_app/Widget/VideoPreviewWidget.dart';
 import 'package:flutter/material.dart';
 
-class Chatbubble extends StatelessWidget {
+class GroupChatbubble extends StatelessWidget {
   final String message;
   final bool isComming;
   final String time;
   final String status;
   final String imageUrl;
   final String videoUrl;
+  final String senderName;
+  final String senderEmail;
+  final String senderProfileImage;
 
-  const Chatbubble({
+  const GroupChatbubble({
     super.key,
     required this.message,
     required this.isComming,
@@ -18,6 +21,9 @@ class Chatbubble extends StatelessWidget {
     required this.status,
     required this.imageUrl,
     required this.videoUrl,
+    required this.senderName,
+    required this.senderEmail,
+    required this.senderProfileImage,
   });
 
   @override
@@ -121,6 +127,22 @@ class Chatbubble extends StatelessWidget {
             isComming ? MainAxisAlignment.start : MainAxisAlignment.end,
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
+          if (isComming)
+            Padding(
+              padding: const EdgeInsets.only(right: 8.0),
+              child: CircleAvatar(
+                radius: 22,
+                backgroundColor: Colors.grey[300],
+                backgroundImage:
+                    senderProfileImage.isNotEmpty
+                        ? NetworkImage(senderProfileImage)
+                        : null,
+                child:
+                    senderProfileImage.isEmpty
+                        ? Icon(Icons.person, size: 24, color: Colors.grey[700])
+                        : null,
+              ),
+            ),
           Flexible(
             child: Stack(
               children: [
@@ -160,16 +182,50 @@ class Chatbubble extends StatelessWidget {
                     ),
                   ),
                   constraints: BoxConstraints(
-                    maxWidth: MediaQuery.of(context).size.width / 1.9,
+                    maxWidth: MediaQuery.of(context).size.width / 1.8,
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      Row(
+                        children: [
+                          Text(
+                            senderName,
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14,
+                              color:
+                                  isComming ? Color(0xFF128C7E) : Colors.white,
+                            ),
+                          ),
+                          SizedBox(width: 6),
+                          Icon(
+                            Icons.verified,
+                            size: 14,
+                            color:
+                                isComming
+                                    ? Color(0xFF128C7E)
+                                    : Colors.white.withOpacity(0.7),
+                          ),
+                        ],
+                      ),
+                      if (senderEmail.isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 2, bottom: 6),
+                          child: Text(
+                            senderEmail,
+                            style: TextStyle(
+                              fontSize: 11,
+                              color:
+                                  isComming ? Colors.grey[600] : Colors.white70,
+                            ),
+                          ),
+                        ),
                       if (imageUrl.isNotEmpty || videoUrl.isNotEmpty)
                         Padding(
-                          padding: const EdgeInsets.only(bottom: 3),
+                          padding: const EdgeInsets.only(bottom: 6),
                           child: ClipRRect(
-                            borderRadius: BorderRadius.circular(5),
+                            borderRadius: BorderRadius.circular(10),
                             child: GestureDetector(
                               onTap:
                                   () =>
@@ -268,6 +324,22 @@ class Chatbubble extends StatelessWidget {
               ],
             ),
           ),
+          if (!isComming)
+            Padding(
+              padding: const EdgeInsets.only(left: 8.0),
+              child: CircleAvatar(
+                radius: 22,
+                backgroundColor: Colors.grey[300],
+                backgroundImage:
+                    senderProfileImage.isNotEmpty
+                        ? NetworkImage(senderProfileImage)
+                        : null,
+                child:
+                    senderProfileImage.isEmpty
+                        ? Icon(Icons.person, size: 24, color: Colors.grey[700])
+                        : null,
+              ),
+            ),
         ],
       ),
     );

@@ -5,19 +5,48 @@ import 'package:chat_app/Widget/ImagepickerBottomSheet.dart';
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:get/get.dart';
+import 'dart:async';
 
-class TypeMessage extends StatelessWidget {
+class TypeMessage extends StatefulWidget {
   final UserModel userModel;
   const TypeMessage({super.key, required this.userModel});
 
   @override
+  State<TypeMessage> createState() => _TypeMessageState();
+}
+
+class _TypeMessageState extends State<TypeMessage> {
+  final TextEditingController messageController = TextEditingController();
+  final ChatController chatController = Get.put(ChatController());
+  final ImagePickerController imagePickerController = Get.put(
+    ImagePickerController(),
+  );
+  final RxString message = "".obs;
+  Timer? _typingTimer;
+
+  void _onChanged(String value) {
+    message.value = value;
+    _typingTimer?.cancel();
+    if (value.isNotEmpty) {
+      chatController.setTypingStatus(true);
+      _typingTimer = Timer(const Duration(seconds: 2), () {
+        chatController.setTypingStatus(false);
+      });
+    } else {
+      chatController.setTypingStatus(false);
+    }
+  }
+
+  @override
+  void dispose() {
+    _typingTimer?.cancel();
+    chatController.setTypingStatus(false);
+    messageController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    TextEditingController messageController = TextEditingController();
-    ChatController chatController = Get.put(ChatController());
-    ImagePickerController imagePickerController = Get.put(
-      ImagePickerController(),
-    );
-    RxString message = "".obs;
     return Container(
       margin: EdgeInsets.all(5),
       padding: const EdgeInsets.symmetric(vertical: 5, horizontal: 15),
@@ -41,9 +70,7 @@ class TypeMessage extends StatelessWidget {
           SizedBox(width: 10),
           Expanded(
             child: TextField(
-              onChanged: (value) {
-                message.value = value;
-              },
+              onChanged: _onChanged,
               controller: messageController,
               style: TextStyle(color: Colors.white, fontSize: 13),
               decoration: InputDecoration(
@@ -108,12 +135,14 @@ class TypeMessage extends StatelessWidget {
                         chatController.selectedImagePath.value != "" ||
                         chatController.selectedVideoPath.value != "") {
                       chatController.sendMessage(
-                        userModel.id!,
+                        widget.userModel.id!,
                         messageController.text,
-                        userModel,
+                        widget.userModel,
                       );
+                      chatController.setTypingStatus(false);
                       messageController.clear();
                       message.value = "";
+                      _typingTimer?.cancel();
                     }
                   },
                 ),

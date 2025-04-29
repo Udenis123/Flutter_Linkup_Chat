@@ -6,8 +6,10 @@ class AssetsImage {
 
   static const boyPic = "$imagesPath/boy.png";
   static const girlPic = "$imagesPath/girls.png";
+   static const add = "$imagesPath/add.png";
 
   static const appIcon = "$imagesPath/app.png";
   static const connetSvG = "$imagesPath/connect.png";
   static const plugSvg = "$iconsPath/plug.svg";
+  
 }
