@@ -12,6 +12,7 @@ class ChatModel {
   String? documentUrl;
   List<String>? reactions;
   List<dynamic>? replies;
+  String? status;
 
   ChatModel({
     this.id,
@@ -27,6 +28,7 @@ class ChatModel {
     this.documentUrl,
     this.reactions,
     this.replies,
+    this.status,
   });
 
   ChatModel.fromJson(Map<String, dynamic> json) {
@@ -43,6 +45,7 @@ class ChatModel {
     documentUrl = json['documentUrl'];
     reactions = List<String>.from(json['reactions'] ?? []);
     replies = json['replies'] ?? [];
+    status = json['status'];
   }
 
   Map<String, dynamic> toJson() {
@@ -60,6 +63,7 @@ class ChatModel {
     data['documentUrl'] = documentUrl;
     data['reactions'] = reactions;
     data['replies'] = replies;
+    data['status'] = status;
     return data;
   }
 }

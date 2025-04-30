@@ -243,7 +243,9 @@ class Chatbubble extends StatelessWidget {
                           if (!isComming) ...[
                             SizedBox(width: 4),
                             Icon(
-                              Icons.done_all,
+                              status == 'pending' || status == 'failed'
+                                  ? Icons.access_time
+                                  : Icons.done_all,
                               color: Colors.white70,
                               size: 15,
                             ),

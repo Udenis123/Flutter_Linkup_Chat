@@ -9,6 +9,7 @@ import 'package:get/get_instance/get_instance.dart';
 import 'package:get/state_manager.dart';
 import 'package:intl/intl.dart';
 import 'package:uuid/uuid.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
 
 class ChatController extends GetxController {
   final auth = FirebaseAuth.instance;
@@ -81,6 +82,11 @@ class ChatController extends GetxController {
       );
     }
 
+    // Check connectivity
+    var connectivityResult = await Connectivity().checkConnectivity();
+    String messageStatus =
+        (connectivityResult == ConnectivityResult.none) ? 'pending' : 'sent';
+
     var newChat = ChatModel(
       id: chatId,
       message: message,
@@ -90,6 +96,7 @@ class ChatController extends GetxController {
       receiverId: targetUserId,
       senderName: profileController.currentUser.value.name,
       timestamp: DateTime.now().toString(),
+      status: messageStatus, // set status
     );
 
     var roomDetails = ChatRoomModel(
@@ -108,14 +115,20 @@ class ChatController extends GetxController {
     );
 
     try {
-      await db
-          .collection("chats")
-          .doc(roomId)
-          .collection("messages")
-          .doc(chatId)
-          .set(newChat.toJson());
-      await db.collection("chats").doc(roomId).set(roomDetails.toJson());
-      await contactController.saveContact(targetUser);
+      if (messageStatus == 'sent') {
+        await db
+            .collection("chats")
+            .doc(roomId)
+            .collection("messages")
+            .doc(chatId)
+            .set(newChat.toJson());
+        await db.collection("chats").doc(roomId).set(roomDetails.toJson());
+        await contactController.saveContact(targetUser);
+      } else {
+        // Optionally, store locally or handle pending messages
+        // For now, just print or handle as needed
+        print('Message is pending due to no internet connection.');
+      }
       selectedImagePath.value = "";
       selectedVideoPath.value = "";
     } catch (e) {
