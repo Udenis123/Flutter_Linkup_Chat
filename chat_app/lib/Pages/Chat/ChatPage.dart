@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:chat_app/Config/Images.dart';
+import 'package:chat_app/Controller/CallController.dart';
 import 'package:chat_app/Controller/ChatController.dart';
 import 'package:chat_app/Controller/ContactController.dart';
 import 'package:chat_app/Controller/ProfileController.dart';
@@ -11,6 +12,7 @@ import 'package:chat_app/Pages/Chat/Widget/TypeMessage.dart';
 import 'package:chat_app/UserProfile/ProfilePage.dart';
 import 'package:chat_app/Widget/VideoPreviewWidget.dart';
 import 'package:flutter/material.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:get/get_state_manager/src/rx_flutter/rx_obx_widget.dart';
 import 'package:get/instance_manager.dart';
 import 'package:get/route_manager.dart';
@@ -26,6 +28,7 @@ class ChatPage extends StatelessWidget {
   Widget build(BuildContext context) {
     ChatController chatController = Get.put(ChatController());
     ProfileController profileController = Get.put(ProfileController());
+    CallController callController = Get.put(CallController());
 
     return Scaffold(
       appBar: AppBar(
@@ -146,7 +149,21 @@ class ChatPage extends StatelessWidget {
             ],
           ),
         ),
-        actions: [IconButton(onPressed: () {}, icon: Icon(Icons.phone))],
+        actions: [
+          IconButton(
+            onPressed: () {
+              callController.callAction(
+                userModel,
+                profileController.currentUser.value,
+              );
+            },
+            icon: Icon(FontAwesomeIcons.phone, size: 15),
+          ),
+          IconButton(
+            onPressed: () {},
+            icon: Icon(FontAwesomeIcons.video, size: 15),
+          ),
+        ],
       ),
 
       body: Padding(
