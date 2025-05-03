@@ -59,7 +59,19 @@ class CallController extends GetxController {
             callStatus.value = 'ringing';
             isCaller.value = false;
             FlutterRingtonePlayer().playRingtone();
-            // Show incoming call UI (handled in UI)
+            // Listen for call end (caller hangs up before accept)
+            db.collection("calls").doc(call.id).snapshots().listen((doc) {
+              if (!doc.exists || (doc.data()?['status'] == 'ended')) {
+                FlutterRingtonePlayer().stop();
+                callStatus.value = '';
+                currentCall.value = null;
+              }
+            });
+          } else {
+            // No incoming call, ensure UI is reset
+            FlutterRingtonePlayer().stop();
+            callStatus.value = '';
+            currentCall.value = null;
           }
         });
   }
