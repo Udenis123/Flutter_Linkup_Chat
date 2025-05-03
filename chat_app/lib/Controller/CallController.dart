@@ -6,115 +6,112 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:uuid/uuid.dart';
+import 'package:flutter_ringtone_player/flutter_ringtone_player.dart';
+
 class CallController extends GetxController {
   final db = FirebaseFirestore.instance;
   final auth = FirebaseAuth.instance;
   final uuid = Uuid().v4();
 
+  Rx<AudioCallModel?> currentCall = Rx<AudioCallModel?>(null);
+  RxString callStatus = ''.obs; // 'calling', 'ringing', 'accepted', 'ended'
+  RxBool isCaller = false.obs;
+
+  @override
   void onInit() {
     super.onInit();
-
-    getCallsNotification().listen((List<AudioCallModel> callList) {
-      if (callList.isNotEmpty) {
-        var callData = callList[0];
-        Get.snackbar(
-          duration: Duration(days: 1),
-          barBlur: 0,
-          backgroundColor: Colors.grey[900]!,
-          isDismissible: false,
-          icon: Icon(Icons.call),
-          onTap: (snack) {
-            Get.back();
-            Get.to(
-              AudioCallPage(
-                target: UserModel(
-                  id: callData.callerUid,
-                  name: callData.callerName,
-                  email: callData.callerEmail,
-                  profileImage: callData.callerPic,
-                ),
-              ),
-            );
-          },
-          callData.callerName!,
-          "Incoming Call",
-          mainButton: TextButton(
-            onPressed: () {
-              endCall(callData);
-              Get.back();
-            },
-            child: Text("End Call"),
-          ),
-        );
-      }
-    });
+    listenForIncomingCalls();
   }
 
-  Future<void> callAction(UserModel reciver, UserModel caller) async {
-    String id = uuid;
+  // Start a call (caller)
+  Future<void> startCall(UserModel receiver, UserModel caller) async {
+    String callId = uuid;
     var newCall = AudioCallModel(
-      id: id,
+      id: callId,
       callerName: caller.name,
       callerPic: caller.profileImage,
       callerUid: caller.id,
       callerEmail: caller.email,
-      receiverName: reciver.name,
-      receiverPic: reciver.profileImage,
-      receiverUid: reciver.id,
-      receiverEmail: reciver.email,
-      status: "dialing",
+      receiverName: receiver.name,
+      receiverPic: receiver.profileImage,
+      receiverUid: receiver.id,
+      receiverEmail: receiver.email,
+      status: "calling",
     );
-
-    try {
-      await db
-          .collection("notification")
-          .doc(reciver.id)
-          .collection("call")
-          .doc(id)
-          .set(newCall.toJson());
-      await db
-          .collection("users")
-          .doc(auth.currentUser!.uid)
-          .collection("calls")
-          .doc(id)
-          .set(newCall.toJson());
-      await db
-          .collection("users")
-          .doc(reciver.id)
-          .collection("calls")
-          .doc(id)
-          .set(newCall.toJson());
-      Future.delayed(Duration(seconds: 20), () {
-        endCall(newCall);
-      });
-    } catch (e) {
-      print(e);
-    }
+    isCaller.value = true;
+    currentCall.value = newCall;
+    callStatus.value = 'calling';
+    await db.collection("calls").doc(callId).set(newCall.toJson());
+    listenToCallStatus(callId);
   }
 
-  Stream<List<AudioCallModel>> getCallsNotification() {
-    return FirebaseFirestore.instance
-        .collection("notification")
-        .doc(auth.currentUser!.uid)
-        .collection("call")
+  // Listen for incoming calls (receiver)
+  void listenForIncomingCalls() {
+    db
+        .collection("calls")
+        .where('receiverUid', isEqualTo: auth.currentUser?.uid)
+        .where('status', isEqualTo: 'calling')
         .snapshots()
-        .map((snapshot) => snapshot.docs
-            .map((doc) => AudioCallModel.fromJson(doc.data()))
-            .toList());
+        .listen((snapshot) {
+          if (snapshot.docs.isNotEmpty) {
+            var call = AudioCallModel.fromJson(snapshot.docs.first.data());
+            currentCall.value = call;
+            callStatus.value = 'ringing';
+            isCaller.value = false;
+            FlutterRingtonePlayer().playRingtone();
+            // Show incoming call UI (handled in UI)
+          }
+        });
   }
 
-  Future<void> endCall(AudioCallModel call) async {
-    try {
-      await db
-          .collection("notification")
-          .doc(call.receiverUid)
-          .collection("call")
-          .doc(call.id)
-          .delete();
-    } catch (e) {
-      print(e);
-    }
+  // Accept call (receiver)
+  Future<void> acceptCall() async {
+    if (currentCall.value == null) return;
+    await db.collection("calls").doc(currentCall.value!.id).update({
+      'status': 'accepted',
+    });
+    callStatus.value = 'accepted';
+    FlutterRingtonePlayer().stop();
+    // Both users will join the room when status is 'accepted'
   }
 
+  // Decline call (receiver)
+  Future<void> declineCall() async {
+    if (currentCall.value == null) return;
+    await db.collection("calls").doc(currentCall.value!.id).update({
+      'status': 'ended',
+    });
+    callStatus.value = 'ended';
+    FlutterRingtonePlayer().stop();
+    currentCall.value = null;
+  }
 
+  // End call (either side)
+  Future<void> endCall() async {
+    if (currentCall.value == null) return;
+    await db.collection("calls").doc(currentCall.value!.id).update({
+      'status': 'ended',
+    });
+    callStatus.value = 'ended';
+    FlutterRingtonePlayer().stop();
+    currentCall.value = null;
+  }
+
+  // Listen to call status changes (for both caller and receiver)
+  void listenToCallStatus(String callId) {
+    db.collection("calls").doc(callId).snapshots().listen((doc) {
+      if (!doc.exists) return;
+      var call = AudioCallModel.fromJson(doc.data()!);
+      currentCall.value = call;
+      callStatus.value = call.status ?? '';
+      if (call.status == 'accepted') {
+        FlutterRingtonePlayer().stop();
+        // Both users join the Zego room (handled in UI)
+      } else if (call.status == 'ended') {
+        FlutterRingtonePlayer().stop();
+        currentCall.value = null;
+        // Both users return to chat (handled in UI)
+      }
+    });
+  }
 }
