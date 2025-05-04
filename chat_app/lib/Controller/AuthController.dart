@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:get/get.dart';
 import 'package:flutter/material.dart';
+import 'package:chat_app/Controller/ProfileController.dart';
 
 class AuthController extends GetxController {
   final auth = FirebaseAuth.instance;
@@ -15,6 +16,7 @@ class AuthController extends GetxController {
     isLoading.value = true;
     try {
       await auth.signInWithEmailAndPassword(email: email, password: password);
+      await ProfileController().afterLoginOrProfileUpdate();
       Get.offAllNamed("/homePage");
       return true;
     } on FirebaseAuthException catch (e) {
@@ -46,6 +48,7 @@ class AuthController extends GetxController {
         password: password,
       );
       await initUser(email, name);
+      await ProfileController().afterLoginOrProfileUpdate();
 
       AuthPageBody.isLogin.value = true;
       Get.snackbar(

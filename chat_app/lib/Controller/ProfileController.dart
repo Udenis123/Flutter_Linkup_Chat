@@ -9,6 +9,7 @@ import 'package:get/get_rx/src/rx_types/rx_types.dart';
 import 'package:get/get_state_manager/src/simple/get_controllers.dart';
 import 'package:http/http.dart' as http;
 import 'package:path/path.dart' as path;
+import 'package:chat_app/Config/FirebaseApi.dart';
 
 class ProfileController extends GetxController {
   final auth = FirebaseAuth.instance;
@@ -177,5 +178,19 @@ class ProfileController extends GetxController {
       }
     }
     return "";
+  }
+
+  Future<void> updateFcmToken() async {
+    final user = auth.currentUser;
+    if (user == null) return;
+    final token = await FirebaseApi.getToken();
+    if (token != null) {
+      await db.collection('users').doc(user.uid).update({'fcmToken': token});
+    }
+  }
+
+  Future<void> afterLoginOrProfileUpdate() async {
+    await updateFcmToken();
+    // ... any other logic you want to run after login/profile update
   }
 }

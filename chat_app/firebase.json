@@ -1,1 +1,38 @@
-{"flutter":{"platforms":{"android":{"default":{"projectId":"linkup-chat-app-c7cef","appId":"1:554223931371:android:7cf90750930547142153ae","fileOutput":"android/app/google-services.json"}},"dart":{"lib/firebase_options.dart":{"projectId":"linkup-chat-app-c7cef","configurations":{"android":"1:554223931371:android:7cf90750930547142153ae","ios":"1:554223931371:ios:af476583066b4be42153ae"}}}}}}
+{
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "linkup-chat-app-c7cef",
+          "appId": "1:554223931371:android:7cf90750930547142153ae",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "linkup-chat-app-c7cef",
+          "configurations": {
+            "android": "1:554223931371:android:7cf90750930547142153ae",
+            "ios": "1:554223931371:ios:af476583066b4be42153ae"
+          }
+        }
+      }
+    }
+  },
+  "functions": [
+    {
+      "source": "functions",
+      "codebase": "default",
+      "ignore": [
+        "node_modules",
+        ".git",
+        "firebase-debug.log",
+        "firebase-debug.*.log",
+        "*.local"
+      ],
+      "predeploy": [
+        "npm --prefix \"$RESOURCE_DIR\" run lint"
+      ]
+    }
+  ]
+}
