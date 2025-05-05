@@ -9,6 +9,8 @@ import 'package:get/route_manager.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:chat_app/Config/FirebaseApi.dart';
+import 'package:chat_app/Controller/CallController.dart';
+import 'package:get/get.dart';
 
 final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
     FlutterLocalNotificationsPlugin();
@@ -28,6 +30,7 @@ void _showNotification(RemoteMessage message) async {
         importance: Importance.max,
         priority: Priority.high,
         ticker: 'ticker',
+        fullScreenIntent: true,
       );
   const NotificationDetails platformChannelSpecifics = NotificationDetails(
     android: androidPlatformChannelSpecifics,
@@ -44,6 +47,28 @@ void _showNotification(RemoteMessage message) async {
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await FirebaseApi.initialize();
+  Get.put(CallController(), permanent: true);
+  final initialMessage = await FirebaseMessaging.instance.getInitialMessage();
+  if (initialMessage != null) {
+    print('Initial notification: \\${initialMessage.data}');
+    if (initialMessage.data['type'] == 'chat' &&
+        initialMessage.data['room_id'] != null &&
+        initialMessage.data['sender_id'] != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        print('Navigating to chat page from killed state');
+        await FirebaseApi.navigateToChatPage(
+          initialMessage.data['room_id'],
+          initialMessage.data['sender_id'],
+        );
+      });
+    } else if (initialMessage.data['call_id'] != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        print('Navigating to call page from killed state');
+        await FirebaseApi.navigateToCallScreen(initialMessage.data['call_id']);
+      });
+    }
+  }
+
   runApp(MyApp());
 }
 

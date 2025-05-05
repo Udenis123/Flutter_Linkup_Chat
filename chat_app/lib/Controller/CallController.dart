@@ -1,6 +1,7 @@
 import 'package:chat_app/Model/AudioCallModel.dart';
 import 'package:chat_app/Model/UserModel.dart';
 import 'package:chat_app/Pages/CallPage/AudioCallPage.dart';
+import 'package:chat_app/Pages/CallPage/IncomingCallPage.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -24,7 +25,11 @@ class CallController extends GetxController {
   }
 
   // Start a call (caller)
-  Future<void> startCall(UserModel receiver, UserModel caller) async {
+  Future<void> startCall(
+    UserModel receiver,
+    UserModel caller, {
+    String callType = "voice",
+  }) async {
     String callId = uuid;
     var newCall = AudioCallModel(
       id: callId,
@@ -37,6 +42,7 @@ class CallController extends GetxController {
       receiverUid: receiver.id,
       receiverEmail: receiver.email,
       status: "calling",
+      callType: callType,
     );
     isCaller.value = true;
     currentCall.value = newCall;
@@ -47,6 +53,12 @@ class CallController extends GetxController {
 
   // Listen for incoming calls (receiver)
   void listenForIncomingCalls() {
+    if (auth.currentUser?.uid == null) {
+      print(
+        'CallController: Not authenticated, skipping listenForIncomingCalls',
+      );
+      return;
+    }
     db
         .collection("calls")
         .where('receiverUid', isEqualTo: auth.currentUser?.uid)
@@ -59,6 +71,13 @@ class CallController extends GetxController {
             callStatus.value = 'ringing';
             isCaller.value = false;
             FlutterRingtonePlayer().playRingtone();
+            // Show full-screen incoming call page if not already on it
+            if (Get.currentRoute != '/incomingCall') {
+              Get.to(
+                () => IncomingCallPage(callData: snapshot.docs.first.data()),
+                routeName: '/incomingCall',
+              );
+            }
             // Listen for call end (caller hangs up before accept)
             db.collection("calls").doc(call.id).snapshots().listen((doc) {
               if (!doc.exists || (doc.data()?['status'] == 'ended')) {

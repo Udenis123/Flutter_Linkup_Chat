@@ -5,9 +5,12 @@ import '../firebase_options.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:chat_app/Pages/CallPage/AudioCallPage.dart';
+import 'package:chat_app/Pages/CallPage/VideoCallPage.dart';
 import 'package:chat_app/Model/UserModel.dart';
 import 'package:chat_app/Controller/ProfileController.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:chat_app/Pages/CallPage/IncomingCallPage.dart';
+import 'package:chat_app/Pages/Chat/ChatPage.dart';
 
 @pragma('vm:entry-point')
 void notificationTapBackground(NotificationResponse notificationResponse) {
@@ -30,6 +33,8 @@ class FirebaseApi {
   }
 
   static void _showNotification(RemoteMessage message) async {
+    final callType = message.data['call_type'] ?? 'voice';
+    final callTypeText = callType == 'video' ? 'Video Call' : 'Voice Call';
     const AndroidNotificationDetails androidPlatformChannelSpecifics =
         AndroidNotificationDetails(
           'call_channel',
@@ -38,6 +43,7 @@ class FirebaseApi {
           importance: Importance.max,
           priority: Priority.high,
           ticker: 'ticker',
+          fullScreenIntent: true,
         );
     const NotificationDetails platformChannelSpecifics = NotificationDetails(
       android: androidPlatformChannelSpecifics,
@@ -45,13 +51,13 @@ class FirebaseApi {
     await _localNotifications.show(
       0,
       message.notification?.title ?? 'Incoming Call',
-      message.notification?.body ?? 'You have an incoming call',
+      '${message.notification?.body ?? 'You have an incoming call'} ($callTypeText)',
       platformChannelSpecifics,
       payload: message.data['call_id'] ?? 'call',
     );
   }
 
-  static Future<void> _navigateToCallScreen(String callId) async {
+  static Future<void> navigateToCallScreen(String callId) async {
     try {
       final callDoc =
           await FirebaseFirestore.instance
@@ -69,6 +75,24 @@ class FirebaseApi {
       }
     } catch (e) {
       Get.snackbar('Error', 'Failed to open call: $e');
+    }
+  }
+
+  static Future<void> navigateToChatPage(String roomId, String senderId) async {
+    print('Navigating to chat page: roomId=$roomId, senderId=$senderId');
+    // Fetch user info for ChatPage
+    final userDoc =
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(senderId)
+            .get();
+    if (userDoc.exists) {
+      final user = UserModel.fromJson(userDoc.data()!);
+      print('User found, navigating to ChatPage for user: \\${user.name}');
+      Get.to(() => ChatPage(userModel: user));
+    } else {
+      print('User not found for senderId: $senderId');
+      Get.snackbar('User Not Found', 'Could not open chat.');
     }
   }
 
@@ -91,7 +115,7 @@ class FirebaseApi {
       ) async {
         final payload = notificationResponse.payload;
         if (payload != null && payload != 'call') {
-          await _navigateToCallScreen(payload);
+          await navigateToCallScreen(payload);
         }
       },
       onDidReceiveBackgroundNotificationResponse: notificationTapBackground,
@@ -106,83 +130,21 @@ class FirebaseApi {
     });
     // Handle notification tap when app is in background/terminated
     FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) async {
-      final callId = message.data['call_id'];
-      if (callId != null && callId != 'call') {
-        await _navigateToCallScreen(callId);
+      print('Notification tapped: \\${message.data}');
+      if (message.data['type'] == 'chat' &&
+          message.data['room_id'] != null &&
+          message.data['sender_id'] != null) {
+        await navigateToChatPage(
+          message.data['room_id'],
+          message.data['sender_id'],
+        );
+      } else if (message.data['call_id'] != null) {
+        await navigateToCallScreen(message.data['call_id']);
       }
     });
   }
 
   static Future<String?> getToken() async {
     return await _firebaseMessaging.getToken();
-  }
-}
-
-class IncomingCallPage extends StatelessWidget {
-  final Map<String, dynamic> callData;
-  IncomingCallPage({required this.callData});
-
-  @override
-  Widget build(BuildContext context) {
-    final callId = callData['id'];
-    return Scaffold(
-      backgroundColor: Colors.black,
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.call, color: Colors.green, size: 60),
-            SizedBox(height: 16),
-            Text(
-              'Incoming call from \\${callData['callerName']}',
-              style: TextStyle(color: Colors.white, fontSize: 20),
-            ),
-            SizedBox(height: 24),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                ElevatedButton.icon(
-                  icon: Icon(Icons.call, color: Colors.white),
-                  label: Text('Accept', style: TextStyle(color: Colors.white)),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.green,
-                  ),
-                  onPressed: () async {
-                    await FirebaseFirestore.instance
-                        .collection("calls")
-                        .doc(callId)
-                        .update({'status': 'accepted'});
-                    // Navigate to AudioCallPage
-                    Get.off(
-                      () => AudioCallPage(
-                        target: UserModel(
-                          id: callData['callerUid'],
-                          name: callData['callerName'],
-                          email: callData['callerEmail'],
-                          profileImage: callData['callerPic'],
-                        ),
-                      ),
-                    );
-                  },
-                ),
-                SizedBox(width: 24),
-                ElevatedButton.icon(
-                  icon: Icon(Icons.call_end, color: Colors.white),
-                  label: Text('Decline', style: TextStyle(color: Colors.white)),
-                  style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-                  onPressed: () async {
-                    await FirebaseFirestore.instance
-                        .collection("calls")
-                        .doc(callId)
-                        .update({'status': 'ended'});
-                    Get.back();
-                  },
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
   }
 }

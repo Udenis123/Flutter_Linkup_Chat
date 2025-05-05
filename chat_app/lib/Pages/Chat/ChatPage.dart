@@ -8,6 +8,7 @@ import 'package:chat_app/Controller/ProfileController.dart';
 import 'package:chat_app/Model/ChatModel.dart';
 import 'package:chat_app/Model/UserModel.dart';
 import 'package:chat_app/Pages/CallPage/AudioCallPage.dart';
+import 'package:chat_app/Pages/CallPage/VideoCallPage.dart';
 import 'package:chat_app/Pages/Chat/Widget/ChatBubble.dart';
 import 'package:chat_app/Pages/Chat/Widget/TypeMessage.dart';
 import 'package:chat_app/UserProfile/ProfilePage.dart';
@@ -30,7 +31,7 @@ class ChatPage extends StatelessWidget {
   Widget build(BuildContext context) {
     ChatController chatController = Get.put(ChatController());
     ProfileController profileController = Get.put(ProfileController());
-    CallController callController = Get.put(CallController());
+    CallController callController = Get.find<CallController>();
 
     return Obx(() {
       // If there is an active call, show the call UI
@@ -144,7 +145,9 @@ class ChatPage extends StatelessWidget {
           return Scaffold(
             body: Stack(
               children: [
-                AudioCallPage(target: target),
+                call.callType == "video"
+                    ? VideoCallPage(target: target)
+                    : AudioCallPage(target: target),
                 Positioned(
                   top: 40,
                   right: 20,
@@ -296,12 +299,19 @@ class ChatPage extends StatelessWidget {
                 callController.startCall(
                   userModel,
                   profileController.currentUser.value,
+                  callType: "voice",
                 );
               },
               icon: Icon(FontAwesomeIcons.phone, size: 15),
             ),
             IconButton(
-              onPressed: () {},
+              onPressed: () {
+                callController.startCall(
+                  userModel,
+                  profileController.currentUser.value,
+                  callType: "video",
+                );
+              },
               icon: Icon(FontAwesomeIcons.video, size: 15),
             ),
           ],
