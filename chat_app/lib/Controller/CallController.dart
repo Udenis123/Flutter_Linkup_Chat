@@ -84,6 +84,10 @@ class CallController extends GetxController {
                 FlutterRingtonePlayer().stop();
                 callStatus.value = '';
                 currentCall.value = null;
+                // Close IncomingCallPage if open
+                if (Get.currentRoute == '/incomingCall') {
+                  Get.back();
+                }
               }
             });
           } else {

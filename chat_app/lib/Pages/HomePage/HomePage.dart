@@ -24,7 +24,15 @@ class _HomepageState extends State<Homepage> with TickerProviderStateMixin {
   @override
   void initState() {
     super.initState();
-    tabController = TabController(length: 3, vsync: this);
+    int initialTab = 0;
+    if (Get.arguments != null && Get.arguments['tabIndex'] != null) {
+      initialTab = Get.arguments['tabIndex'];
+    }
+    tabController = TabController(
+      length: 3,
+      vsync: this,
+      initialIndex: initialTab,
+    );
   }
 
   @override
@@ -65,7 +73,7 @@ class _HomepageState extends State<Homepage> with TickerProviderStateMixin {
       body: TabBarView(
         controller: tabController,
         children: [
-                ChatsList(), 
+          ChatsList(),
           GroupPage(),
           ListView(
             children: [

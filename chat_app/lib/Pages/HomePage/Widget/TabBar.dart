@@ -10,7 +10,7 @@ MyTabBar(TabController tabController, BuildContext context) {
       indicatorSize: TabBarIndicatorSize.label,
 
       unselectedLabelStyle: Theme.of(context).textTheme.labelLarge,
-      tabs: [Tab(text: 'Chats'), Tab(text: 'Groups'), Tab(text: 'Status')],
+      tabs: [Tab(text: 'Chats'), Tab(text: 'Groups'), Tab(text: 'Calls')],
     ),
   );
 }

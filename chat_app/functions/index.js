@@ -1,53 +1,73 @@
 const functions = require("firebase-functions");
-const { onDocumentCreated } = require("firebase-functions/v2/firestore");
+const { onDocumentCreated, onDocumentUpdated } = require("firebase-functions/v2/firestore");
 const { initializeApp } = require("firebase-admin/app");
 const { getFirestore } = require("firebase-admin/firestore");
 const { getMessaging } = require("firebase-admin/messaging");
 
 initializeApp();
-exports.sendCallNotification = onDocumentCreated("calls/{callId}", async (event) => {
-  const callData = event.data.data();
-  const receiverUid = callData.receiverUid;
-  const callId = callData.id;
-  const callTypeText = callData.callType === 'video' ? 'video call' : 'voice call';
 
-  console.log("❤️❤️❤️❤️❤️❤️❤️❤️❤️❤️❤️: Function triggered for callId:", callId, "receiverUid:", receiverUid);
+exports.sendMissedCallNotification = onDocumentUpdated("calls/{callId}", async (event) => {
+  const before = event.data.before.data();
+  const after = event.data.after.data();
 
-  // Get receiver's FCM token
-  const userDoc = await getFirestore().collection("users").doc(receiverUid).get();
-  const fcmToken = userDoc.data().fcmToken;
+  // Only send if status changed to 'ended' and was not accepted
+  if (
+    before.status !== 'ended' &&
+    after.status === 'ended' &&
+    before.status !== 'accepted'
+  ) {
+    const receiverUid = after.receiverUid;
+    const callerName = after.callerName || "Someone";
+    const callType = after.callType || "voice";
+    const callId = after.id;
 
-  console.log("❤️❤️❤️❤️❤️❤️❤️❤️❤️❤️❤️❤️❤️❤️: Fetched FCM token:", fcmToken);
+    // Get receiver's FCM token
+    const userDoc = await getFirestore().collection("users").doc(receiverUid).get();
+    const fcmToken = userDoc.data().fcmToken;
 
-  if (fcmToken) {
-    const message = {
-      token: fcmToken,
-      notification: {
-        title: "Incoming Call",
-        body: `${callData.callerName} is calling you (${callTypeText})!`,
-        priority: "high"
-      },
-      data: {
-        call_id: callId,
-        call_type: callData.callType || 'voice',
-      },
-      android: {
-        priority: "high"
-      },
-      apns: {
-        headers: {
-          "apns-priority": "10"
-        }
-      }
-    };
+    // Get caller's profile image
+    let callerImage = "";
     try {
-      const response = await getMessaging().send(message);
-      console.log(":❤️❤️❤️❤️❤️❤️❤️❤️❤️❤️✅ : Notification response:", JSON.stringify(response));
-    } catch (error) {
-      console.error("❤️❤️❤️❤️❤️❤️❤️❤️❤️❤️❤️❌: Error sending notification:", error);
+      const callerDoc = await getFirestore().collection("users").doc(after.callerUid).get();
+      callerImage = callerDoc.data().profileImage || "";
+    } catch (e) {
+      callerImage = "";
     }
-  } else {
-    console.log("❤️❤️❤️❤️❤️❤️❤️❤️❤️❤️❤️❤️❤️❤️❤️❤️❤️: No FCM token found for user:", receiverUid);
+
+    if (fcmToken) {
+      const message = {
+        token: fcmToken,
+        notification: {
+          title: "Missed Call",
+          body: `Missed ${callType} call from ${callerName}`,
+          image: callerImage || undefined,
+        },
+        data: {
+          type: "missed_call",
+          call_type: callType,
+          caller_name: callerName,
+          caller_image: callerImage,
+        },
+        android: {
+          priority: "high",
+          notification: {
+            channel_id: "call_channel",
+            click_action: "FLUTTER_NOTIFICATION_CLICK",
+            image: callerImage || undefined,
+          }
+        },
+        apns: {
+          headers: {
+            "apns-priority": "10"
+          }
+        }
+      };
+      try {
+        await getMessaging().send(message);
+      } catch (error) {
+        console.error("Error sending missed call notification:", error);
+      }
+    }
   }
 });
 
@@ -61,23 +81,36 @@ exports.sendMessageNotification = onDocumentCreated("chats/{roomId}/messages/{me
   const userDoc = await getFirestore().collection("users").doc(receiverId).get();
   const fcmToken = userDoc.data().fcmToken;
 
+  // Get sender's profile image
+  let senderImage = "";
+  try {
+    const senderDoc = await getFirestore().collection("users").doc(messageData.senderId).get();
+    senderImage = senderDoc.data().profileImage || "";
+  } catch (e) {
+    senderImage = "";
+  }
+
   if (fcmToken) {
     const message = {
       token: fcmToken,
       notification: {
         title: senderName,
         body: messageData.message || "You have a new message!",
+        image: senderImage || undefined, // Only set if available
       },
       data: {
         room_id: roomId,
         sender_id: messageData.senderId,
         type: "chat",
+        sender_image: senderImage,
+        sender_name: senderName,
       },
       android: {
         priority: "high",
         notification: {
           channel_id: "message_channel",
-          click_action: "FLUTTER_NOTIFICATION_CLICK"
+          click_action: "FLUTTER_NOTIFICATION_CLICK",
+          image: senderImage || undefined,
         }
       },
       apns: {
