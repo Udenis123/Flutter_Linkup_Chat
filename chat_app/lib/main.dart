@@ -15,6 +15,15 @@ import 'package:get/get.dart';
 final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
     FlutterLocalNotificationsPlugin();
 
+// Create the call_channel notification channel at startup
+const AndroidNotificationChannel callChannel = AndroidNotificationChannel(
+  'call_channel', // id
+  'Call Notifications', // name
+  description: 'Channel for incoming call notifications',
+  importance: Importance.max,
+  playSound: true,
+);
+
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp();
   // Handle background message (show notification, etc.)
@@ -46,30 +55,38 @@ void _showNotification(RemoteMessage message) async {
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // Create the notification channel before initializing FirebaseApi
+  await flutterLocalNotificationsPlugin
+      .resolvePlatformSpecificImplementation<
+        AndroidFlutterLocalNotificationsPlugin
+      >()
+      ?.createNotificationChannel(callChannel);
   await FirebaseApi.initialize();
   Get.put(CallController(), permanent: true);
   final initialMessage = await FirebaseMessaging.instance.getInitialMessage();
+
+  runApp(MyApp());
+
   if (initialMessage != null) {
-    print('Initial notification: \\${initialMessage.data}');
-    if (initialMessage.data['type'] == 'chat' &&
-        initialMessage.data['room_id'] != null &&
-        initialMessage.data['sender_id'] != null) {
-      WidgetsBinding.instance.addPostFrameCallback((_) async {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      print('Initial notification: ${initialMessage.data}');
+      if (initialMessage.data['type'] == 'chat' &&
+          initialMessage.data['room_id'] != null &&
+          initialMessage.data['sender_id'] != null) {
         print('Navigating to chat page from killed state');
         await FirebaseApi.navigateToChatPage(
           initialMessage.data['room_id'],
           initialMessage.data['sender_id'],
         );
-      });
-    } else if (initialMessage.data['call_id'] != null) {
-      WidgetsBinding.instance.addPostFrameCallback((_) async {
+      } else if (initialMessage.data['call_id'] != null) {
         print('Navigating to call page from killed state');
         await FirebaseApi.navigateToCallScreen(initialMessage.data['call_id']);
-      });
-    }
+      } else if (initialMessage.data['type'] == 'missed_call') {
+        print('Navigating to calls tab from killed state');
+        Get.offAllNamed('/homePage', arguments: {'tabIndex': 2});
+      }
+    });
   }
-
-  runApp(MyApp());
 }
 
 class MyApp extends StatelessWidget {
@@ -82,6 +99,7 @@ class MyApp extends StatelessWidget {
       theme: lightTheme,
       getPages: pagePath,
       darkTheme: darkTheme,
+      debugShowCheckedModeBanner: false,
       themeMode: ThemeMode.dark,
       home: SplacePage(),
     );

@@ -10,6 +10,8 @@ class AudioCallModel {
   String? receiverEmail;
   String? status;
   String? callType;
+  List<String>? participants;
+  DateTime? timestamp;
 
   AudioCallModel({
     this.id,
@@ -23,6 +25,8 @@ class AudioCallModel {
     this.receiverEmail,
     this.status,
     this.callType,
+    this.participants,
+    this.timestamp,
   });
 
   AudioCallModel.fromJson(Map<String, dynamic> json) {
@@ -37,6 +41,19 @@ class AudioCallModel {
     receiverEmail = json['receiverEmail'];
     status = json['status'];
     callType = json['callType'];
+    participants =
+        json['participants'] != null
+            ? List<String>.from(json['participants'])
+            : null;
+    if (json['timestamp'] != null) {
+      if (json['timestamp'] is String) {
+        timestamp = DateTime.tryParse(json['timestamp']);
+      } else if (json['timestamp'] is int) {
+        timestamp = DateTime.fromMillisecondsSinceEpoch(json['timestamp']);
+      } else if (json['timestamp'] is DateTime) {
+        timestamp = json['timestamp'];
+      }
+    }
   }
 
   Map<String, dynamic> toJson() {
@@ -52,6 +69,12 @@ class AudioCallModel {
     data['receiverEmail'] = receiverEmail;
     data['status'] = status;
     data['callType'] = callType;
+    if (participants != null) {
+      data['participants'] = participants;
+    }
+    if (timestamp != null) {
+      data['timestamp'] = timestamp!.toIso8601String();
+    }
     return data;
   }
 }

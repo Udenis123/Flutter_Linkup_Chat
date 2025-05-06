@@ -4,6 +4,7 @@ import 'package:chat_app/Controller/ContactController.dart';
 import 'package:chat_app/Controller/ProfileController.dart';
 import 'package:chat_app/Controller/StatusController.dart';
 import 'package:chat_app/Groups/GroupPage.dart';
+import 'package:chat_app/Pages/CallList.dart/CallList.dart';
 import 'package:chat_app/Pages/HomePage/Widget/ChatsList.dart';
 import 'package:chat_app/Pages/HomePage/Widget/TabBar.dart';
 import 'package:chat_app/Pages/ProfilePage.dart/ProfilePage.dart';
@@ -38,6 +39,7 @@ class _HomepageState extends State<Homepage> with TickerProviderStateMixin {
   @override
   Widget build(BuildContext context) {
     ProfileController profileController = Get.put(ProfileController());
+    Get.put(StatusController(), permanent: true);
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Theme.of(context).colorScheme.primaryContainer,
@@ -72,18 +74,7 @@ class _HomepageState extends State<Homepage> with TickerProviderStateMixin {
 
       body: TabBarView(
         controller: tabController,
-        children: [
-          ChatsList(),
-          GroupPage(),
-          ListView(
-            children: [
-              ListTile(
-                title: Text("Name  Rogers"),
-                subtitle: Text("Chat with your friends"),
-              ),
-            ],
-          ),
-        ],
+        children: [ChatsList(), GroupPage(), CallListPage()],
       ),
     );
   }

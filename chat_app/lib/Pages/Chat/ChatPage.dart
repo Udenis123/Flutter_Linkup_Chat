@@ -294,26 +294,28 @@ class ChatPage extends StatelessWidget {
             ),
           ),
           actions: [
-            IconButton(
-              onPressed: () {
-                callController.startCall(
-                  userModel,
-                  profileController.currentUser.value,
-                  callType: "voice",
-                );
-              },
-              icon: Icon(FontAwesomeIcons.phone, size: 15),
-            ),
-            IconButton(
-              onPressed: () {
-                callController.startCall(
-                  userModel,
-                  profileController.currentUser.value,
-                  callType: "video",
-                );
-              },
-              icon: Icon(FontAwesomeIcons.video, size: 15),
-            ),
+            if (userModel.id != profileController.currentUser.value.id) ...[
+              IconButton(
+                onPressed: () {
+                  callController.startCall(
+                    userModel,
+                    profileController.currentUser.value,
+                    callType: "voice",
+                  );
+                },
+                icon: Icon(FontAwesomeIcons.phone, size: 15),
+              ),
+              IconButton(
+                onPressed: () {
+                  callController.startCall(
+                    userModel,
+                    profileController.currentUser.value,
+                    callType: "video",
+                  );
+                },
+                icon: Icon(FontAwesomeIcons.video, size: 15),
+              ),
+            ],
           ],
         ),
         body: Padding(

@@ -5,6 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:get/get.dart';
 import 'package:flutter/material.dart';
 import 'package:chat_app/Controller/ProfileController.dart';
+import 'package:chat_app/Controller/CallController.dart';
 
 class AuthController extends GetxController {
   final auth = FirebaseAuth.instance;
@@ -17,6 +18,11 @@ class AuthController extends GetxController {
     try {
       await auth.signInWithEmailAndPassword(email: email, password: password);
       await ProfileController().afterLoginOrProfileUpdate();
+      if (!Get.isRegistered<CallController>()) {
+        Get.put(CallController(), permanent: true);
+      } else {
+        Get.find<CallController>().listenForIncomingCalls();
+      }
       Get.offAllNamed("/homePage");
       return true;
     } on FirebaseAuthException catch (e) {
@@ -49,7 +55,11 @@ class AuthController extends GetxController {
       );
       await initUser(email, name);
       await ProfileController().afterLoginOrProfileUpdate();
-
+      if (!Get.isRegistered<CallController>()) {
+        Get.put(CallController(), permanent: true);
+      } else {
+        Get.find<CallController>().listenForIncomingCalls();
+      }
       AuthPageBody.isLogin.value = true;
       Get.snackbar(
         'Success',

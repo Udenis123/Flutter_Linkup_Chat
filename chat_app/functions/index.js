@@ -21,50 +21,49 @@ exports.sendMissedCallNotification = onDocumentUpdated("calls/{callId}", async (
     const callType = after.callType || "voice";
     const callId = after.id;
 
-    // Get receiver's FCM token
-    const userDoc = await getFirestore().collection("users").doc(receiverUid).get();
-    const fcmToken = userDoc.data().fcmToken;
+  // Get receiver's FCM token
+  const userDoc = await getFirestore().collection("users").doc(receiverUid).get();
+  const fcmToken = userDoc.data().fcmToken;
 
-    // Get caller's profile image
+    // Get caller's profile image or use default
+    const defaultImage = "https://th.bing.com/th/id/OIP.SAcV4rjQCseubnk32USHigHaHx?rs=1&pid=ImgDetMain";
     let callerImage = "";
     try {
       const callerDoc = await getFirestore().collection("users").doc(after.callerUid).get();
-      callerImage = callerDoc.data().profileImage || "";
+      callerImage = callerDoc.data().profileImage || defaultImage;
     } catch (e) {
-      callerImage = "";
+      callerImage = defaultImage;
     }
 
-    if (fcmToken) {
-      const message = {
-        token: fcmToken,
+  if (fcmToken) {
+    const message = {
+      token: fcmToken,
+      notification: {
+        title: "Missed Call",
+        body: `📞 Missed ${callType} ${callerName}`,
+      },
+      data: {
+        type: "missed_call",
+        call_type: callType,
+        caller_name: callerName,
+        caller_image: callerImage,
+      },
+      android: {
+        priority: "high",
         notification: {
-          title: "Missed Call",
-          body: `Missed ${callType} call from ${callerName}`,
-          image: callerImage || undefined,
-        },
-        data: {
-          type: "missed_call",
-          call_type: callType,
-          caller_name: callerName,
-          caller_image: callerImage,
-        },
-        android: {
-          priority: "high",
-          notification: {
-            channel_id: "call_channel",
-            click_action: "FLUTTER_NOTIFICATION_CLICK",
-            image: callerImage || undefined,
-          }
-        },
-        apns: {
-          headers: {
-            "apns-priority": "10"
-          }
+          channel_id: "call_channel",
+          click_action: "FLUTTER_NOTIFICATION_CLICK",
         }
-      };
-      try {
+      },
+      apns: {
+        headers: {
+          "apns-priority": "10"
+        }
+      }
+    };
+    try {
         await getMessaging().send(message);
-      } catch (error) {
+    } catch (error) {
         console.error("Error sending missed call notification:", error);
       }
     }
