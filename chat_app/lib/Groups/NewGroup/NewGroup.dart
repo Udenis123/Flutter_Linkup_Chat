@@ -75,7 +75,7 @@ class NewGroup extends StatelessWidget {
                           },
                           child: ChatTile(
                             userId: snapshot.data![index].id!,
-                            lastChat: snapshot.data![index].about! ?? "",
+                            lastChat: snapshot.data![index].about ?? "",
                             lastTime: "",
                             imageUrl:
                                 snapshot.data![index].profileImage ??

@@ -6,6 +6,7 @@ import 'package:chat_app/Controller/GroupController.dart';
 
 import 'package:chat_app/Controller/ProfileController.dart';
 import 'package:chat_app/GroupChat/GroupChatBublle.dart';
+import 'package:chat_app/GroupChat/GroupSystemMessage.dart';
 import 'package:chat_app/GroupChat/GroupTypeMessage.dart';
 
 import 'package:chat_app/Model/GroupsModel.dart';
@@ -27,6 +28,21 @@ import 'package:intl/intl.dart';
 class GroupChatPage extends StatelessWidget {
   final GroupModel groupModel;
   const GroupChatPage({super.key, required this.groupModel});
+
+  bool isSystemMessage(String message) {
+    final systemMessages = [
+      'joined the group',
+      'left the group',
+      'Group created',
+      'added',
+      'removed',
+      'is now an admin',
+      'is no longer an admin',
+      'Group info updated',
+      'Group photo updated',
+    ];
+    return systemMessages.any((sys) => message.contains(sys));
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -81,7 +97,10 @@ class GroupChatPage extends StatelessWidget {
                 groupModel.name ?? "Group Name",
                 style: Theme.of(context).textTheme.bodyMedium,
               ),
-              Text("Online", style: Theme.of(context).textTheme.labelSmall),
+              Text(
+                "${groupModel.members?.length ?? 0} members",
+                style: Theme.of(context).textTheme.labelSmall,
+              ),
             ],
           ),
         ),
@@ -116,16 +135,25 @@ class GroupChatPage extends StatelessWidget {
                           reverse: true,
                           itemCount: snapshot.data!.length,
                           itemBuilder: (context, index) {
+                            final message = snapshot.data![index];
                             DateTime timestamp = DateTime.parse(
-                              snapshot.data![index].timestamp!,
+                              message.timestamp!,
                             );
                             String formattedTime = DateFormat(
                               'hh:mm a',
                             ).format(timestamp);
+
+                            // Check if this is a system message
+                            if (isSystemMessage(message.message ?? "")) {
+                              return GroupSystemMessage(
+                                message: message.message ?? "",
+                                time: formattedTime,
+                              );
+                            }
+
                             // Find sender in group members
-                            final sender = groupModel.members.firstWhere(
-                              (member) =>
-                                  member.id == snapshot.data![index].senderId,
+                            final sender = groupModel.members!.firstWhere(
+                              (member) => member.id == message.senderId,
                               orElse:
                                   () => UserModel(
                                     name: "Unknown",
@@ -133,12 +161,13 @@ class GroupChatPage extends StatelessWidget {
                                     profileImage: "",
                                   ),
                             );
+
                             return GroupChatbubble(
-                              message: snapshot.data![index].message ?? "",
-                              imageUrl: snapshot.data![index].imageUrl ?? "",
-                              videoUrl: snapshot.data![index].videoUrl ?? "",
+                              message: message.message ?? "",
+                              imageUrl: message.imageUrl ?? "",
+                              videoUrl: message.videoUrl ?? "",
                               isComming:
-                                  snapshot.data![index].senderId !=
+                                  message.senderId !=
                                   profileController.currentUser.value.id,
                               time: formattedTime,
                               status: "read",

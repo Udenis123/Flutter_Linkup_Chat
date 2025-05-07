@@ -15,8 +15,12 @@ class VideoCallPage extends StatelessWidget {
   Widget build(BuildContext context) {
     ProfileController profileController = Get.put(ProfileController());
     ChatController chatController = Get.put(ChatController());
-    var callId = chatController.getRoomId(target.id!);
     CallController callController = Get.find<CallController>();
+    // Use the callId from the CallController if available, otherwise generate one
+    var callId =
+        callController.currentCall.value?.id ??
+        chatController.getRoomId(target.id!);
+
     return Stack(
       children: [
         ZegoUIKitPrebuiltCall(
@@ -28,7 +32,7 @@ class VideoCallPage extends StatelessWidget {
           config: ZegoUIKitPrebuiltCallConfig.oneOnOneVideoCall(),
         ),
         Positioned(
-          bottom: 40,
+          bottom: 10,
           left: 0,
           right: 0,
           child: Center(
@@ -37,6 +41,7 @@ class VideoCallPage extends StatelessWidget {
               child: Icon(Icons.call_end, color: Colors.white),
               onPressed: () async {
                 await callController.endCall();
+                Get.back(); // Add navigation back after ending call
               },
             ),
           ),

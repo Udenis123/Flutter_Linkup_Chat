@@ -9,6 +9,7 @@ import 'package:chat_app/Pages/HomePage/Widget/ChatsList.dart';
 import 'package:chat_app/Pages/HomePage/Widget/TabBar.dart';
 import 'package:chat_app/Pages/ProfilePage.dart/ProfilePage.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:get/get.dart';
 
@@ -21,6 +22,7 @@ class Homepage extends StatefulWidget {
 
 class _HomepageState extends State<Homepage> with TickerProviderStateMixin {
   late TabController tabController;
+  DateTime? lastPressed;
 
   @override
   void initState() {
@@ -36,45 +38,68 @@ class _HomepageState extends State<Homepage> with TickerProviderStateMixin {
     );
   }
 
+  Future<bool> _onWillPop() async {
+    final now = DateTime.now();
+    if (lastPressed == null ||
+        now.difference(lastPressed!) > Duration(seconds: 2)) {
+      lastPressed = now;
+      Get.snackbar(
+        'Exit',
+        'Press back again to exit',
+        snackPosition: SnackPosition.BOTTOM,
+        duration: Duration(seconds: 2),
+        backgroundColor: Theme.of(context).colorScheme.surfaceVariant,
+        colorText: Theme.of(context).colorScheme.onSurfaceVariant,
+      );
+      return false;
+    }
+    // Exit the app
+    SystemNavigator.pop();
+    return true;
+  }
+
   @override
   Widget build(BuildContext context) {
     ProfileController profileController = Get.put(ProfileController());
     Get.put(StatusController(), permanent: true);
-    return Scaffold(
-      appBar: AppBar(
-        backgroundColor: Theme.of(context).colorScheme.primaryContainer,
-        title: Text(
-          AppString.appName,
-          style: Theme.of(context).textTheme.headlineSmall,
-        ),
-        leading: Image.asset(AssetsImage.appIcon, width: 10),
-        actions: [
-          IconButton(onPressed: () {}, icon: Icon(Icons.search)),
-          IconButton(
-            onPressed: () async {
-              await profileController.getUserDetails();
-              Get.to(() => Profilepage());
-            },
-            icon: Icon(Icons.more_vert),
-          ),
-        ],
-        bottom: MyTabBar(tabController, context),
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          Get.toNamed("/contactPage");
-        },
-        backgroundColor: Theme.of(context).colorScheme.primary,
-        child: Icon(
-          FontAwesomeIcons.pen,
-          size: 20,
-          color: Theme.of(context).colorScheme.onSurface,
-        ),
-      ),
 
-      body: TabBarView(
-        controller: tabController,
-        children: [ChatsList(), GroupPage(), CallListPage()],
+    return WillPopScope(
+      onWillPop: _onWillPop,
+      child: Scaffold(
+        appBar: AppBar(
+          backgroundColor: Theme.of(context).colorScheme.primaryContainer,
+          title: Text(
+            AppString.appName,
+            style: Theme.of(context).textTheme.headlineSmall,
+          ),
+          leading: Image.asset(AssetsImage.appIcon, width: 10),
+          actions: [
+            IconButton(onPressed: () {}, icon: Icon(Icons.search)),
+            IconButton(
+              onPressed: () async {
+                await profileController.getUserDetails();
+                Get.to(() => Profilepage());
+              },
+              icon: Icon(Icons.more_vert),
+            ),
+          ],
+          bottom: MyTabBar(tabController, context),
+        ),
+        floatingActionButton: FloatingActionButton(
+          onPressed: () {
+            Get.toNamed("/contactPage");
+          },
+          backgroundColor: Theme.of(context).colorScheme.primary,
+          child: Icon(
+            FontAwesomeIcons.pen,
+            size: 20,
+            color: Theme.of(context).colorScheme.onSurface,
+          ),
+        ),
+        body: TabBarView(
+          controller: tabController,
+          children: [ChatsList(), GroupPage(), CallListPage()],
+        ),
       ),
     );
   }

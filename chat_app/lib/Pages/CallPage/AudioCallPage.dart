@@ -16,7 +16,9 @@ class AudioCallPage extends StatelessWidget {
     ProfileController profileController = Get.put(ProfileController());
     ChatController chatController = Get.put(ChatController());
     CallController callController = Get.find<CallController>();
-    var callId = chatController.getRoomId(target.id!);
+    var callId =
+        callController.currentCall.value?.id ??
+        chatController.getRoomId(target.id!);
 
     return Stack(
       children: [
@@ -29,7 +31,7 @@ class AudioCallPage extends StatelessWidget {
           config: ZegoUIKitPrebuiltCallConfig.oneOnOneVoiceCall(),
         ),
         Positioned(
-          bottom: 40,
+          bottom: 10,
           left: 0,
           right: 0,
           child: Center(
@@ -38,6 +40,7 @@ class AudioCallPage extends StatelessWidget {
               child: Icon(Icons.call_end, color: Colors.white),
               onPressed: () async {
                 await callController.endCall();
+                Get.back();
               },
             ),
           ),

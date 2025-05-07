@@ -148,17 +148,17 @@ class ChatPage extends StatelessWidget {
                 call.callType == "video"
                     ? VideoCallPage(target: target)
                     : AudioCallPage(target: target),
-                Positioned(
-                  top: 40,
-                  right: 20,
-                  child: FloatingActionButton(
-                    backgroundColor: Colors.red,
-                    child: Icon(Icons.call_end, color: Colors.white),
-                    onPressed: () async {
-                      await callController.endCall();
-                    },
-                  ),
-                ),
+                // Positioned(
+                //   top: 40,
+                //   right: 20,
+                //   child: FloatingActionButton(
+                //     backgroundColor: Colors.red,
+                //     child: Icon(Icons.call_end, color: Colors.white),
+                //     onPressed: () async {
+                //       await callController.endCall();
+                //     },
+                //   ),
+                // ),
               ],
             ),
           );

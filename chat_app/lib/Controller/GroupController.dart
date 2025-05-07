@@ -51,7 +51,7 @@ class GroupController extends GetxController {
         imagePath,
       );
 
-      await db.collection("groups").doc(groupId).set({
+      final groupData = {
         "id": groupId,
         "name": groupName,
         "profileUrl": imageUrl,
@@ -59,14 +59,29 @@ class GroupController extends GetxController {
         "createdAt": DateTime.now().toString(),
         "createdBy": auth.currentUser!.uid,
         "timeStamp": DateTime.now().toString(),
-      });
-      getGroups();
+        "lastMessageTime": DateTime.now().toString(),
+        "lastmessage": "Group created",
+        "lastMessageBy": profileController.currentUser.value.name,
+        "description": "Welcome to $groupName",
+      };
 
-      successMessage("Group create");
+      await db.collection("groups").doc(groupId).set(groupData);
+
+      await sendGroupMessage(
+        "Group created by ${profileController.currentUser.value.name}",
+        groupId,
+        "",
+        "",
+      );
+
+      await getGroups();
+
+      successMessage("Group created successfully");
       isLoading.value = false;
-      Get.offAll(Homepage());
+      Get.offAll(() => Homepage());
     } catch (e) {
-      print(e);
+      errorMessage("Error creating group: ${e.toString()}");
+      isLoading.value = false;
     }
   }
 
@@ -186,64 +201,254 @@ class GroupController extends GetxController {
   }
 
   Future<void> deleteGroup(String groupId) async {
-    await db.collection("groups").doc(groupId).delete();
-    getGroups();
+    try {
+      // Send notification before deleting
+      await sendGroupMessage(
+        "${profileController.currentUser.value.name} deleted the group",
+        groupId,
+        "",
+        "",
+      );
+
+      await db.collection("groups").doc(groupId).delete();
+      getGroups();
+    } catch (e) {
+      print("Error deleting group: $e");
+    }
   }
 
   Future<void> leaveGroup(String groupId) async {
-    await db.collection("groups").doc(groupId).update({
-      "members": FieldValue.arrayRemove([
-        {
-          "id": auth.currentUser!.uid,
-          "name": profileController.currentUser.value.name,
-          "email": profileController.currentUser.value.email,
-          "profileImage": profileController.currentUser.value.profileImage,
-          "role": "member",
-        },
-      ]),
-    });
-    getGroups();
+    try {
+      // Get current user details
+      final currentUser = UserModel(
+        id: auth.currentUser!.uid,
+        name: profileController.currentUser.value.name,
+        email: profileController.currentUser.value.email,
+        profileImage: profileController.currentUser.value.profileImage,
+        role: "member", // Add role to match the stored data
+      );
+
+      // Get the current group data
+      final groupDoc = await db.collection("groups").doc(groupId).get();
+      if (!groupDoc.exists) return;
+
+      final group = GroupModel.fromJson(groupDoc.data()!);
+
+      // Remove the current user from members list
+      final updatedMembers =
+          group.members!
+              .where((member) => member.id != currentUser.id)
+              .toList();
+
+      // First send a message to the group
+      await sendGroupMessage(
+        "${currentUser.name} left the group",
+        groupId,
+        "",
+        "",
+      );
+
+      // Update the group with the new members list
+      await db.collection("groups").doc(groupId).update({
+        "members": updatedMembers.map((e) => e.toJson()).toList(),
+      });
+
+      // If no members left, delete the group
+      if (updatedMembers.isEmpty) {
+        await deleteGroup(groupId);
+      }
+
+      // Navigate back after leaving
+      Get.back();
+    } catch (e) {
+      print("Error leaving group: $e");
+    }
   }
 
   Future<void> addMemberToGroup(String groupId, UserModel user) async {
-    isLoading.value = true;
-    await db.collection("groups").doc(groupId).update({
-      "members": FieldValue.arrayUnion([user.toJson()]),
-    });
-    getGroups();
-    isLoading.value = false;
+    try {
+      isLoading.value = true;
+
+      // Add member to the group
+      await db.collection("groups").doc(groupId).update({
+        "members": FieldValue.arrayUnion([user.toJson()]),
+      });
+
+      // Send notification message
+      await sendGroupMessage(
+        "${profileController.currentUser.value.name} added ${user.name} to the group",
+        groupId,
+        "",
+        "",
+      );
+
+      getGroups();
+      isLoading.value = false;
+    } catch (e) {
+      print("Error adding member: $e");
+      isLoading.value = false;
+    }
   }
 
   Future<void> removeMemberFromGroup(String groupId, UserModel user) async {
-    await db.collection("groups").doc(groupId).update({
-      "members": FieldValue.arrayRemove([user.toJson()]),
-    });
-    getGroups();
+    try {
+      // Send notification before removing the member
+      await sendGroupMessage(
+        "${profileController.currentUser.value.name} removed ${user.name} from the group",
+        groupId,
+        "",
+        "",
+      );
+
+      // Remove member from the group
+      await db.collection("groups").doc(groupId).update({
+        "members": FieldValue.arrayRemove([user.toJson()]),
+      });
+
+      getGroups();
+    } catch (e) {
+      print("Error removing member: $e");
+    }
   }
 
   Stream<List<GroupModel>> groupListStream(String userId) {
-    return db
-        .collection('groups')
-        .orderBy("lastMessageTime", descending: true)
-        .snapshots()
-        .map((snapshot) {
-          var groups =
-              snapshot.docs
-                  .map((doc) => GroupModel.fromJson(doc.data()))
-                  .where(
-                    (group) =>
-                        group.members != null &&
-                        group.members!.any((member) => member.id == userId),
-                  )
-                  .toList();
+    return db.collection('groups').snapshots().map((snapshot) {
+      var groups =
+          snapshot.docs
+              .map((doc) => GroupModel.fromJson(doc.data()))
+              .where(
+                (group) =>
+                    group.members != null &&
+                    group.members!.any(
+                      (member) =>
+                          member.id == userId &&
+                          member.role != null, // Ensure member has a valid role
+                    ),
+              )
+              .toList();
 
-          groups.sort((a, b) {
-            if (a.lastMessageTime == null) return 1;
-            if (b.lastMessageTime == null) return -1;
-            return b.lastMessageTime!.compareTo(a.lastMessageTime!);
-          });
+      // Sort by lastMessageTime if available, otherwise by createdAt
+      groups.sort((a, b) {
+        final aTime = a.lastMessageTime ?? a.createdAt ?? '';
+        final bTime = b.lastMessageTime ?? b.createdAt ?? '';
+        if (aTime.isEmpty) return 1;
+        if (bTime.isEmpty) return -1;
+        return bTime.compareTo(aTime);
+      });
 
-          return groups;
-        });
+      return groups;
+    });
+  }
+
+  // Get single group stream with member check
+  Stream<GroupModel> getGroupStream(String groupId) {
+    return db.collection('groups').doc(groupId).snapshots().map((doc) {
+      if (!doc.exists) return GroupModel();
+
+      final group = GroupModel.fromJson(doc.data()!);
+
+      // Check if current user is still a member
+      final isMember =
+          group.members?.any((member) => member.id == auth.currentUser?.uid) ??
+          false;
+
+      // Return empty group if user is not a member
+      return isMember ? group : GroupModel();
+    });
+  }
+
+  // Make a member an admin
+  Future<void> makeAdmin(String groupId, UserModel member) async {
+    try {
+      final groupDoc = await db.collection('groups').doc(groupId).get();
+      if (!groupDoc.exists) return;
+
+      final group = GroupModel.fromJson(groupDoc.data()!);
+      final updatedMembers =
+          group.members!.map((m) {
+            if (m.id == member.id) {
+              return m..role = "admin";
+            }
+            return m;
+          }).toList();
+
+      await db.collection('groups').doc(groupId).update({
+        "members": updatedMembers.map((e) => e.toJson()).toList(),
+      });
+
+      await sendGroupMessage(
+        "${profileController.currentUser.value.name} made ${member.name} an admin",
+        groupId,
+        "",
+        "",
+      );
+    } catch (e) {
+      print("Error making admin: $e");
+    }
+  }
+
+  // Remove admin status from a member
+  Future<void> removeAdmin(String groupId, UserModel member) async {
+    try {
+      final groupDoc = await db.collection('groups').doc(groupId).get();
+      if (!groupDoc.exists) return;
+
+      final group = GroupModel.fromJson(groupDoc.data()!);
+      final updatedMembers =
+          group.members!.map((m) {
+            if (m.id == member.id) {
+              return m..role = "member";
+            }
+            return m;
+          }).toList();
+
+      await db.collection('groups').doc(groupId).update({
+        "members": updatedMembers.map((e) => e.toJson()).toList(),
+      });
+
+      await sendGroupMessage(
+        "${profileController.currentUser.value.name} removed admin status from ${member.name}",
+        groupId,
+        "",
+        "",
+      );
+    } catch (e) {
+      print("Error removing admin: $e");
+    }
+  }
+
+  // Update group information
+  Future<void> updateGroupInfo(
+    String groupId,
+    String name,
+    String description,
+  ) async {
+    try {
+      await db.collection("groups").doc(groupId).update({
+        "name": name,
+        "description": description,
+      });
+
+      await sendGroupMessage("Group info updated", groupId, "", "");
+    } catch (e) {
+      print("Error updating group info: $e");
+    }
+  }
+
+  // Update group photo
+  Future<void> updateGroupPhoto(String groupId, String imagePath) async {
+    try {
+      String imageUrl = await profileController.uploadFileToCloudinaryUnsigned(
+        imagePath,
+      );
+
+      await db.collection("groups").doc(groupId).update({
+        "profileUrl": imageUrl,
+      });
+
+      await sendGroupMessage("Group photo updated", groupId, "", "");
+    } catch (e) {
+      print("Error updating group photo: $e");
+    }
   }
 }
