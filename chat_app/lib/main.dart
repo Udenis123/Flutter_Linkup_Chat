@@ -55,37 +55,45 @@ void _showNotification(RemoteMessage message) async {
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
   // Create the notification channel before initializing FirebaseApi
   await flutterLocalNotificationsPlugin
       .resolvePlatformSpecificImplementation<
         AndroidFlutterLocalNotificationsPlugin
       >()
       ?.createNotificationChannel(callChannel);
+
   await FirebaseApi.initialize();
   Get.put(CallController(), permanent: true);
+
+  // Get the initial notification that launched the app
   final initialMessage = await FirebaseMessaging.instance.getInitialMessage();
 
   runApp(MyApp());
 
+  // Handle initial notification after app is built
   if (initialMessage != null) {
-    WidgetsBinding.instance.addPostFrameCallback((_) async {
-      print('Initial notification: ${initialMessage.data}');
-      if (initialMessage.data['type'] == 'chat' &&
-          initialMessage.data['room_id'] != null &&
-          initialMessage.data['sender_id'] != null) {
-        print('Navigating to chat page from killed state');
-        await FirebaseApi.navigateToChatPage(
-          initialMessage.data['room_id'],
-          initialMessage.data['sender_id'],
-        );
-      } else if (initialMessage.data['call_id'] != null) {
-        print('Navigating to call page from killed state');
-        await FirebaseApi.navigateToCallScreen(initialMessage.data['call_id']);
-      } else if (initialMessage.data['type'] == 'missed_call') {
-        print('Navigating to calls tab from killed state');
-        Get.offAllNamed('/homePage', arguments: {'tabIndex': 2});
-      }
-    });
+    print('Initial notification data: ${initialMessage.data}');
+
+    // Add a delay to ensure app is fully initialized
+    await Future.delayed(Duration(seconds: 2));
+
+    if (initialMessage.data['type'] == 'chat' &&
+        initialMessage.data['room_id'] != null &&
+        initialMessage.data['sender_id'] != null) {
+      print('Navigating to chat from killed state');
+      await FirebaseApi.navigateToChatPage(
+        initialMessage.data['room_id'],
+        initialMessage.data['sender_id'],
+      );
+    } else if (initialMessage.data['type'] == 'missed_call') {
+      print('Navigating to calls tab from killed state');
+      Get.offAllNamed('/homePage', arguments: {'tabIndex': 2});
+    } else if (initialMessage.data['call_id'] != null &&
+        initialMessage.data['type'] != 'missed_call') {
+      print('Navigating to call screen from killed state');
+      await FirebaseApi.navigateToCallScreen(initialMessage.data['call_id']);
+    }
   }
 }
 

@@ -10,6 +10,7 @@ import 'package:get/get_state_manager/src/simple/get_controllers.dart';
 import 'package:http/http.dart' as http;
 import 'package:path/path.dart' as path;
 import 'package:chat_app/Config/FirebaseApi.dart';
+import 'package:flutter/material.dart';
 
 class ProfileController extends GetxController {
   final auth = FirebaseAuth.instance;
@@ -52,6 +53,11 @@ class ProfileController extends GetxController {
       isLoading.value = true;
       final imageLink = await uploadFileToCloudinaryUnsigned(imageUrl);
 
+      // Get current user document to preserve existing data
+      final currentUserDoc =
+          await db.collection("users").doc(auth.currentUser!.uid).get();
+      final currentData = currentUserDoc.data() ?? {};
+
       final updatedUser = UserModel(
         id: auth.currentUser!.uid,
         email: auth.currentUser!.email,
@@ -60,18 +66,92 @@ class ProfileController extends GetxController {
         about: about,
         profileImage:
             imageUrl == "" ? currentUser.value.profileImage : imageLink,
+        status: currentData['status'] ?? 'Online',
+        lastOnlineStatus: currentData['lastOnlineStatus'],
+        fcmToken: currentData['fcmToken'],
+        createdAt: currentData['createdAt'],
+        role: currentData['role'],
       );
+
+      // Update user's main document
       await db
           .collection("users")
           .doc(auth.currentUser!.uid)
-          .set(updatedUser.toJson());
+          .update(updatedUser.toJson());
 
-      print(imageLink);
+      // Update user data in chat rooms where they are sender or receiver
+      final chatRoomsSnapshot = await db.collection("chats").get();
+      for (var doc in chatRoomsSnapshot.docs) {
+        final data = doc.data();
+        bool needsUpdate = false;
+
+        if (data['sender']?['id'] == auth.currentUser!.uid) {
+          data['sender'] = updatedUser.toJson();
+          needsUpdate = true;
+        }
+        if (data['receiver']?['id'] == auth.currentUser!.uid) {
+          data['receiver'] = updatedUser.toJson();
+          needsUpdate = true;
+        }
+
+        if (needsUpdate) {
+          await db.collection("chats").doc(doc.id).update(data);
+        }
+      }
+
+      // Update user data in groups where they are a member
+      final groupsSnapshot = await db.collection("groups").get();
+      for (var doc in groupsSnapshot.docs) {
+        final data = doc.data();
+        if (data['members'] != null) {
+          List<dynamic> members = List.from(data['members']);
+          bool needsUpdate = false;
+
+          for (int i = 0; i < members.length; i++) {
+            if (members[i]['id'] == auth.currentUser!.uid) {
+              members[i] = updatedUser.toJson();
+              needsUpdate = true;
+            }
+          }
+
+          if (needsUpdate) {
+            await db.collection("groups").doc(doc.id).update({
+              'members': members,
+            });
+          }
+        }
+      }
+
+      // Update user data in contacts of other users
+      final usersSnapshot = await db.collection("users").get();
+      for (var userDoc in usersSnapshot.docs) {
+        if (userDoc.id != auth.currentUser!.uid) {
+          final contactRef = userDoc.reference
+              .collection("contact")
+              .doc(auth.currentUser!.uid);
+          final contactDoc = await contactRef.get();
+          if (contactDoc.exists) {
+            await contactRef.set(updatedUser.toJson());
+          }
+        }
+      }
+
+      // Refresh current user data
+      currentUser.value = updatedUser;
+
+      Get.snackbar(
+        'Success',
+        'Profile updated successfully!',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.green,
+        colorText: Colors.white,
+        duration: Duration(seconds: 2),
+      );
     } catch (e) {
-      print("Error: $e");
+      print("Error updating profile: $e");
+    } finally {
+      isLoading.value = false;
     }
-
-    isLoading.value = false;
   }
 
   Future<String?> uploadFileToFirebase(String imagePath) async {

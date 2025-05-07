@@ -376,12 +376,7 @@ class GroupController extends GetxController {
         "members": updatedMembers.map((e) => e.toJson()).toList(),
       });
 
-      await sendGroupMessage(
-        "${profileController.currentUser.value.name} made ${member.name} an admin",
-        groupId,
-        "",
-        "",
-      );
+      await sendGroupMessage("${member.name} is now an admin", groupId, "", "");
     } catch (e) {
       print("Error making admin: $e");
     }
@@ -407,7 +402,7 @@ class GroupController extends GetxController {
       });
 
       await sendGroupMessage(
-        "${profileController.currentUser.value.name} removed admin status from ${member.name}",
+        "${member.name} is no longer an admin",
         groupId,
         "",
         "",

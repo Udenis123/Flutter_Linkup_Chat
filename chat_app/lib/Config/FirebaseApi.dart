@@ -179,31 +179,44 @@ class FirebaseApi {
         final callData = callDoc.data()!;
         Get.to(() => IncomingCallPage(callData: callData));
       } else {
-        Get.snackbar(
-          'Call Not Found',
-          'The call has already ended or does not exist.',
-        );
+        // If call doesn't exist, navigate to call logs tab
+        Get.offAllNamed('/homePage', arguments: {'tabIndex': 2});
       }
     } catch (e) {
-      Get.snackbar('Error', 'Failed to open call: $e');
+      print('Error navigating to call screen: $e');
+      // On error, navigate to call logs tab
+      Get.offAllNamed('/homePage', arguments: {'tabIndex': 2});
     }
   }
 
   static Future<void> navigateToChatPage(String roomId, String senderId) async {
     print('Navigating to chat page: roomId=$roomId, senderId=$senderId');
-    // Fetch user info for ChatPage
-    final userDoc =
-        await FirebaseFirestore.instance
-            .collection('users')
-            .doc(senderId)
-            .get();
-    if (userDoc.exists) {
-      final user = UserModel.fromJson(userDoc.data()!);
-      print('User found, navigating to ChatPage for user: \\${user.name}');
-      Get.to(() => ChatPage(userModel: user));
-    } else {
-      print('User not found for senderId: $senderId');
-      Get.snackbar('User Not Found', 'Could not open chat.');
+    try {
+      final userDoc =
+          await FirebaseFirestore.instance
+              .collection('users')
+              .doc(senderId)
+              .get();
+      if (userDoc.exists) {
+        final user = UserModel.fromJson(userDoc.data()!);
+        print('User found, navigating to ChatPage for user: ${user.name}');
+
+        // If app is in foreground, use Get.to
+        // If app is in background/killed, use Get.offAll to ensure proper navigation stack
+        if (Get.currentRoute == '/homePage' || Get.currentRoute == '/') {
+          Get.offAll(() => ChatPage(userModel: user));
+        } else {
+          Get.to(() => ChatPage(userModel: user));
+        }
+      } else {
+        print('User not found for senderId: $senderId');
+        Get.snackbar('Error', 'Could not open chat - user not found');
+        Get.offAllNamed('/homePage');
+      }
+    } catch (e) {
+      print('Error navigating to chat page: $e');
+      Get.snackbar('Error', 'Could not open chat');
+      Get.offAllNamed('/homePage');
     }
   }
 
@@ -211,69 +224,72 @@ class FirebaseApi {
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
     );
+
     // Print FCM token for debugging
     final token = await _firebaseMessaging.getToken();
     print('❤️❤️❤️❤️❤️❤️❤️❤️❤️❤️❤️❤️❤️❤️❤️❤️❤️FCM Token: ' + (token ?? 'null'));
-    // Local notifications
+
+    // Local notifications setup
     const AndroidInitializationSettings initializationSettingsAndroid =
         AndroidInitializationSettings('@mipmap/ic_launcher');
     const InitializationSettings initializationSettings =
         InitializationSettings(android: initializationSettingsAndroid);
+
     await _localNotifications.initialize(
       initializationSettings,
       onDidReceiveNotificationResponse: (
         NotificationResponse notificationResponse,
       ) async {
         print(
-          '🔥🔥🔥 onDidReceiveNotificationResponse: payload = \\${notificationResponse.payload}',
+          '🔥🔥🔥 onDidReceiveNotificationResponse: payload = ${notificationResponse.payload}',
         );
-        if (notificationResponse.payload != null &&
-            notificationResponse.payload == 'missed_call') {
-          Get.offAllNamed('/homePage', arguments: {'tabIndex': 2});
-        } else if (notificationResponse.payload != null &&
-            notificationResponse.payload != 'call' &&
-            notificationResponse.payload!.isNotEmpty) {
+
+        if (notificationResponse.payload != null) {
           try {
+            if (notificationResponse.payload == 'missed_call') {
+              // For missed calls, always navigate to call logs tab
+              Get.offAllNamed('/homePage', arguments: {'tabIndex': 2});
+              return;
+            }
+
             final data = jsonDecode(notificationResponse.payload!);
-            print('Parsed JSON payload: $data');
             if (data['type'] == 'chat' &&
                 data['room_id'] != null &&
                 data['sender_id'] != null) {
               await navigateToChatPage(data['room_id'], data['sender_id']);
               return;
             }
-          } catch (e) {
-            print('JSON decode error: $e');
-            final payload = notificationResponse.payload!;
-            // Only treat as call ID if it matches a UUID pattern
+
+            // Handle call ID payload (for active calls)
             final uuidRegex = RegExp(r'^[0-9a-fA-F-]{36}$');
-            if (uuidRegex.hasMatch(payload)) {
-              print('Payload looks like a call ID, navigating to call screen.');
-              await navigateToCallScreen(payload);
-            } else {
-              print(
-                'Payload is not a valid call ID or chat JSON, ignoring tap. Payload: $payload',
-              );
-              // Do nothing!
+            if (uuidRegex.hasMatch(notificationResponse.payload!)) {
+              await navigateToCallScreen(notificationResponse.payload!);
             }
+          } catch (e) {
+            print('Error handling notification tap: $e');
+            // Default to home page on error
+            Get.offAllNamed('/homePage');
           }
-        } else {
-          print('Notification payload is null or empty, ignoring tap.');
         }
       },
       onDidReceiveBackgroundNotificationResponse: notificationTapBackground,
     );
+
     // FCM background handler
     FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+
     // Request notification permissions
     await _firebaseMessaging.requestPermission();
-    // Foreground messages
+
+    // Handle foreground messages
     FirebaseMessaging.onMessage.listen((RemoteMessage message) {
       _showNotification(message);
     });
+
     // Handle notification tap when app is in background/terminated
     FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) async {
-      print('😍😍😍😍😍❤️❤️❤️❤️❤️❤️❤️❤️Notification tapped: \\${message.data}');
+      print('😍😍😍😍😍❤️❤️❤️❤️❤️❤️❤️❤️Notification tapped: ${message.data}');
+
       if (message.data['type'] == 'chat' &&
           message.data['room_id'] != null &&
           message.data['sender_id'] != null) {
@@ -282,12 +298,9 @@ class FirebaseApi {
           message.data['sender_id'],
         );
       } else if (message.data['type'] == 'missed_call') {
-        // Only navigate to Calls tab, do NOT check call_id
         Get.offAllNamed('/homePage', arguments: {'tabIndex': 2});
       } else if (message.data['call_id'] != null &&
-          (message.data['type'] == null ||
-              message.data['type'] != 'missed_call')) {
-        // Only open call screen if NOT a missed call notification
+          message.data['type'] != 'missed_call') {
         await navigateToCallScreen(message.data['call_id']);
       }
     });

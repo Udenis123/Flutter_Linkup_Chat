@@ -9,6 +9,7 @@ class UserModel {
   String? lastOnlineStatus;
   String? status;
   String? role;
+  String? fcmToken;
 
   UserModel({
     this.id,
@@ -20,7 +21,8 @@ class UserModel {
     this.createdAt,
     this.lastOnlineStatus,
     this.status,
-    this.role
+    this.role,
+    this.fcmToken,
   });
 
   UserModel.fromJson(Map<String, dynamic> json) {
@@ -34,6 +36,7 @@ class UserModel {
     lastOnlineStatus = json['lastOnlineStatus'];
     status = json['status'];
     role = json['role'];
+    fcmToken = json['fcmToken'];
   }
 
   Map<String, dynamic> toJson() {
@@ -47,7 +50,8 @@ class UserModel {
     data['createdAt'] = createdAt;
     data['lastOnlineStatus'] = lastOnlineStatus;
     data['status'] = status;
-    data['role'] =role;
+    data['role'] = role;
+    data['fcmToken'] = fcmToken;
     return data;
   }
 }
