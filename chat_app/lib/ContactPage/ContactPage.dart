@@ -4,8 +4,8 @@ import 'package:chat_app/ContactPage/Widget/NewcontactTile.dart';
 import 'package:chat_app/Controller/ChatController.dart';
 import 'package:chat_app/Controller/ContactController.dart';
 import 'package:chat_app/Groups/NewGroup/NewGroup.dart';
+import 'package:chat_app/Model/UserModel.dart';
 import 'package:chat_app/Pages/Chat/ChatPage.dart';
-import 'package:chat_app/Pages/HomePage/HomePage.dart';
 import 'package:chat_app/Pages/HomePage/Widget/ChatTile.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -61,44 +61,49 @@ class Contactpage extends StatelessWidget {
               ],
             ),
             SizedBox(height: 10),
-            Obx(
-              () =>
-                  contactController.isLoading.value
-                      ? CircularProgressIndicator()
-                      : Column(
-                        children:
-                            contactController.userList
-                                .map(
-                                  (e) => InkWell(
-                                    onTap: () {
-                                      Get.to((ChatPage(userModel: e)));
-                                      String roomId = chatController.getRoomId(
-                                        e.id!,
-                                      );
-                                      print("😍😍😍" + roomId);
-                                    },
-                                    child: ChatTile(
-                                      userId: e.id!,
-                                      imageUrl:
-                                          e.profileImage ??
-                                          AssetsImage.defaultImage,
-                                      name: e.name ?? "user name",
-                                      lastChat:
-                                          e.about ??
-                                          "Linkup is a social media app",
-                                      lastTime:
-                                          e.email ==
-                                                  chatController
-                                                      .auth
-                                                      .currentUser!
-                                                      .email
-                                              ? "You"
-                                              : "10:00",
-                                    ),
-                                  ),
-                                )
-                                .toList(),
-                      ),
+            StreamBuilder<List<UserModel>>(
+              stream: contactController.getUsersStream(),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return Center(child: CircularProgressIndicator());
+                }
+                if (snapshot.hasError) {
+                  return Center(child: Text("Error loading contacts"));
+                }
+                if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                  return Center(child: Text("No contacts found"));
+                }
+
+                return Column(
+                  children:
+                      snapshot.data!
+                          .map(
+                            (e) => InkWell(
+                              onTap: () {
+                                Get.to((ChatPage(userModel: e)));
+                                String roomId = chatController.getRoomId(e.id!);
+                              },
+                              child: ChatTile(
+                                userId: e.id!,
+                                imageUrl:
+                                    e.profileImage ?? AssetsImage.defaultImage,
+                                name: e.name ?? "user name",
+                                lastChat:
+                                    e.about ?? "Linkup is a social media app",
+                                lastTime:
+                                    e.email ==
+                                            chatController
+                                                .auth
+                                                .currentUser!
+                                                .email
+                                        ? "You"
+                                        : "10:00",
+                              ),
+                            ),
+                          )
+                          .toList(),
+                );
+              },
             ),
           ],
         ),

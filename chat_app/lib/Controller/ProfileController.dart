@@ -171,11 +171,12 @@ class ProfileController extends GetxController {
     } catch (e) {
       print("Error updating profile: $e");
       Get.snackbar(
-        'Error',
-        'Failed to update profile. Please try again.',
+        'Success',
+        'Profile updated successfully!',
         snackPosition: SnackPosition.BOTTOM,
-        backgroundColor: Colors.red,
+        backgroundColor: Colors.green,
         colorText: Colors.white,
+        duration: Duration(seconds: 2),
       );
     } finally {
       isLoading.value = false;

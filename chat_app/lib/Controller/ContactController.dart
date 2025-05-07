@@ -101,4 +101,35 @@ class ContactController extends GetxController {
                   .toList(),
         );
   }
+
+  // Add stream method for real-time updates
+  Stream<List<UserModel>> getUsersStream() {
+    return db.collection('chats').snapshots().asyncMap((chatSnapshot) async {
+      // Get all users who are in active chats with current user
+      Set<String> existingChatUserIds = {};
+      for (var doc in chatSnapshot.docs) {
+        var chatRoom = ChatRoomModel.fromJson(doc.data());
+        if (chatRoom.id!.contains(auth.currentUser!.uid)) {
+          if (chatRoom.sender?.id != auth.currentUser!.uid) {
+            existingChatUserIds.add(chatRoom.sender?.id ?? '');
+          }
+          if (chatRoom.receiver?.id != auth.currentUser!.uid) {
+            existingChatUserIds.add(chatRoom.receiver?.id ?? '');
+          }
+        }
+      }
+
+      // Get all users except current user and those in active chats
+      final usersSnapshot =
+          await db
+              .collection("users")
+              .where('id', isNotEqualTo: auth.currentUser!.uid)
+              .get();
+
+      return usersSnapshot.docs
+          .map((doc) => UserModel.fromJson(doc.data()))
+          .where((user) => !existingChatUserIds.contains(user.id))
+          .toList();
+    });
+  }
 }

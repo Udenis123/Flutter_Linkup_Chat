@@ -11,7 +11,7 @@ import 'package:flutter_ringtone_player/flutter_ringtone_player.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
-class CallController extends GetxController {
+class CallController extends GetxController with WidgetsBindingObserver {
   final db = FirebaseFirestore.instance;
   final auth = FirebaseAuth.instance;
   final uuid = Uuid().v4();
@@ -19,11 +19,38 @@ class CallController extends GetxController {
   Rx<AudioCallModel?> currentCall = Rx<AudioCallModel?>(null);
   RxString callStatus = ''.obs; // 'calling', 'ringing', 'accepted', 'ended'
   RxBool isCaller = false.obs;
+  bool _isInitialized = false;
 
   @override
   void onInit() {
     super.onInit();
+    WidgetsBinding.instance.addObserver(this);
+    initializeZegoServices();
     listenForIncomingCalls();
+  }
+
+  @override
+  void onClose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.onClose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    switch (state) {
+      case AppLifecycleState.resumed:
+        if (!_isInitialized) {
+          initializeZegoServices();
+        }
+        break;
+      case AppLifecycleState.inactive:
+      case AppLifecycleState.paused:
+      case AppLifecycleState.detached:
+      case AppLifecycleState.hidden:
+        // Handle other lifecycle states if needed
+        break;
+    }
   }
 
   // Start a call (caller)
@@ -183,8 +210,10 @@ class CallController extends GetxController {
     });
   }
 
-  // Add this near the top of the class
+  // Initialize Zego services
   Future<void> initializeZegoServices() async {
+    if (_isInitialized) return;
+
     try {
       // Ensure we're in a valid lifecycle state before initializing
       await Future.delayed(Duration(milliseconds: 100));
@@ -192,27 +221,10 @@ class CallController extends GetxController {
       // Initialize your Zego services here
       // Add any necessary Zego initialization code
 
-      // Add proper lifecycle state handling
-      SystemChannels.lifecycle.setMessageHandler((msg) async {
-        switch (msg) {
-          case "AppLifecycleState.resumed":
-            // Handle resumed state
-            break;
-          case "AppLifecycleState.inactive":
-            // Handle inactive state
-            break;
-          case "AppLifecycleState.paused":
-            // Handle paused state
-            break;
-          case "AppLifecycleState.detached":
-            // Handle detached state
-            break;
-        }
-        return null;
-      });
+      _isInitialized = true;
     } catch (e) {
       print("Error initializing Zego services: $e");
-      // Handle initialization error
+      _isInitialized = false;
     }
   }
 }
