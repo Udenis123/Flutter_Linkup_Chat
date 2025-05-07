@@ -8,6 +8,8 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:uuid/uuid.dart';
 import 'package:flutter_ringtone_player/flutter_ringtone_player.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 
 class CallController extends GetxController {
   final db = FirebaseFirestore.instance;
@@ -179,5 +181,38 @@ class CallController extends GetxController {
         // Both users return to chat (handled in UI)
       }
     });
+  }
+
+  // Add this near the top of the class
+  Future<void> initializeZegoServices() async {
+    try {
+      // Ensure we're in a valid lifecycle state before initializing
+      await Future.delayed(Duration(milliseconds: 100));
+
+      // Initialize your Zego services here
+      // Add any necessary Zego initialization code
+
+      // Add proper lifecycle state handling
+      SystemChannels.lifecycle.setMessageHandler((msg) async {
+        switch (msg) {
+          case "AppLifecycleState.resumed":
+            // Handle resumed state
+            break;
+          case "AppLifecycleState.inactive":
+            // Handle inactive state
+            break;
+          case "AppLifecycleState.paused":
+            // Handle paused state
+            break;
+          case "AppLifecycleState.detached":
+            // Handle detached state
+            break;
+        }
+        return null;
+      });
+    } catch (e) {
+      print("Error initializing Zego services: $e");
+      // Handle initialization error
+    }
   }
 }

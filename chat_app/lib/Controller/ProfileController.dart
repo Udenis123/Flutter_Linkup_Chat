@@ -51,11 +51,30 @@ class ProfileController extends GetxController {
   ) async {
     try {
       isLoading.value = true;
-      final imageLink = await uploadFileToCloudinaryUnsigned(imageUrl);
+      String? imageLink;
+
+      // Handle image upload separately to catch specific upload errors
+      if (imageUrl.isNotEmpty) {
+        try {
+          imageLink = await uploadFileToCloudinaryUnsigned(imageUrl);
+        } catch (e) {
+          print("Image upload failed: $e");
+          Get.snackbar(
+            'Warning',
+            'Failed to upload image, but will continue updating other profile information',
+            snackPosition: SnackPosition.BOTTOM,
+            backgroundColor: Colors.orange,
+            colorText: Colors.white,
+          );
+        }
+      }
 
       // Get current user document to preserve existing data
       final currentUserDoc =
           await db.collection("users").doc(auth.currentUser!.uid).get();
+      if (!currentUserDoc.exists) {
+        throw Exception('User document not found');
+      }
       final currentData = currentUserDoc.data() ?? {};
 
       final updatedUser = UserModel(
@@ -64,8 +83,7 @@ class ProfileController extends GetxController {
         name: name,
         phoneNumber: number,
         about: about,
-        profileImage:
-            imageUrl == "" ? currentUser.value.profileImage : imageLink,
+        profileImage: imageLink ?? currentUser.value.profileImage,
         status: currentData['status'] ?? 'Online',
         lastOnlineStatus: currentData['lastOnlineStatus'],
         fcmToken: currentData['fcmToken'],
@@ -139,6 +157,9 @@ class ProfileController extends GetxController {
       // Refresh current user data
       currentUser.value = updatedUser;
 
+      // Call afterLoginOrProfileUpdate to update FCM token and any other necessary data
+      await afterLoginOrProfileUpdate();
+
       Get.snackbar(
         'Success',
         'Profile updated successfully!',
@@ -149,6 +170,13 @@ class ProfileController extends GetxController {
       );
     } catch (e) {
       print("Error updating profile: $e");
+      Get.snackbar(
+        'Error',
+        'Failed to update profile. Please try again.',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+      );
     } finally {
       isLoading.value = false;
     }
@@ -173,7 +201,7 @@ class ProfileController extends GetxController {
   }
 
   Future<String> uploadFileToCloudinaryUnsigned(String imagePath) async {
-    if (!imagePath.isEmpty || imagePath != "") {
+    if (imagePath.isNotEmpty) {
       try {
         final uploadPreset = 'chat_app';
         final cloudName = 'dxxqpejtl';
@@ -201,19 +229,24 @@ class ProfileController extends GetxController {
           final secureUrl = RegExp(
             r'"secure_url":"(.*?)"',
           ).firstMatch(resBody)?.group(1);
-          print('✅ Upload successful! URL: $secureUrl');
-          return secureUrl!;
+          if (secureUrl != null) {
+            print('✅ Upload successful! URL: $secureUrl');
+            return secureUrl;
+          } else {
+            print('❌ Failed to extract secure URL from response');
+            throw Exception('Failed to extract secure URL from response');
+          }
         } else {
           print('❌ Upload failed with status: ${response.statusCode}');
           print(resBody);
-          return "";
+          throw Exception('Upload failed with status: ${response.statusCode}');
         }
       } catch (e) {
         print('⚠️ Error uploading to Cloudinary: $e');
-        return "";
+        throw e; // Re-throw the error to be caught by the UpdateProfile method
       }
     }
-    return "";
+    return ""; // Return empty string if no image path provided
   }
 
   Future<String> uploadVideoToCloudinary(String videoPath) async {
@@ -271,6 +304,8 @@ class ProfileController extends GetxController {
 
   Future<void> afterLoginOrProfileUpdate() async {
     await updateFcmToken();
-    // ... any other logic you want to run after login/profile update
+    await getUserDetails(); // Refresh user details after any update
+    // Notify any listeners that user data has changed
+    update();
   }
 }

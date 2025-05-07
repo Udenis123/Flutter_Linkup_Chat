@@ -53,7 +53,7 @@ void _showNotification(RemoteMessage message) async {
   );
 }
 
-void main() async {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   // Create the notification channel before initializing FirebaseApi
@@ -64,7 +64,16 @@ void main() async {
       ?.createNotificationChannel(callChannel);
 
   await FirebaseApi.initialize();
-  Get.put(CallController(), permanent: true);
+
+  // Initialize CallController with proper error handling
+  try {
+    final callController = Get.put(CallController(), permanent: true);
+    // Add error handling for Zego initialization if needed
+    await callController.initializeZegoServices();
+  } catch (e) {
+    print("Error initializing call services: $e");
+    // Handle initialization error appropriately
+  }
 
   // Get the initial notification that launched the app
   final initialMessage = await FirebaseMessaging.instance.getInitialMessage();
@@ -99,6 +108,7 @@ void main() async {
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
+
   @override
   Widget build(BuildContext context) {
     return GetMaterialApp(
