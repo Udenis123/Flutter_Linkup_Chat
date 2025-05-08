@@ -16,6 +16,9 @@ import 'dart:io';
 import 'package:path_provider/path_provider.dart';
 import 'package:flutter/services.dart';
 import 'dart:convert';
+import 'package:android_intent_plus/android_intent.dart';
+import 'package:flutter/widgets.dart';
+import 'package:flutter_ringtone_player/flutter_ringtone_player.dart';
 
 @pragma('vm:entry-point')
 void notificationTapBackground(NotificationResponse notificationResponse) {
@@ -27,6 +30,7 @@ class FirebaseApi {
       FirebaseMessaging.instance;
   static final FlutterLocalNotificationsPlugin _localNotifications =
       FlutterLocalNotificationsPlugin();
+  static const String _serverKey = 'YOUR_FCM_SERVER_KEY';
 
   static Future<void> _firebaseMessagingBackgroundHandler(
     RemoteMessage message,
@@ -34,17 +38,76 @@ class FirebaseApi {
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
     );
+
+    // For incoming calls, show high-priority notification
+    if (message.data['type'] == 'call' && message.data['call_id'] != null) {
+      try {
+        final callDoc =
+            await FirebaseFirestore.instance
+                .collection('calls')
+                .doc(message.data['call_id'])
+                .get();
+
+        if (callDoc.exists && callDoc.data()?['status'] == 'calling') {
+          // Use the platform channel to launch the native incoming call UI
+          const platform = MethodChannel('app_channel');
+          try {
+            await platform.invokeMethod('launchIncomingCall', {
+              'call_id': message.data['call_id'],
+              'caller_name': message.data['caller_name'],
+              'caller_pic': message.data['caller_pic'],
+              'call_type': message.data['call_type'],
+            });
+          } catch (e) {
+            print('Error launching incoming call UI: $e');
+          }
+          return;
+        }
+      } catch (e) {
+        print('Error handling background call: $e');
+      }
+    }
+
+    // For other notifications
     _showNotification(message);
   }
 
   static Future<void> _showNotification(RemoteMessage message) async {
+    // Handle incoming call by launching native activity
+    if (message.data['type'] == 'call' && message.data['call_id'] != null) {
+      try {
+        final callDoc =
+            await FirebaseFirestore.instance
+                .collection('calls')
+                .doc(message.data['call_id'])
+                .get();
+
+        if (callDoc.exists && callDoc.data()?['status'] == 'calling') {
+          const platform = MethodChannel('app_channel');
+          try {
+            await platform.invokeMethod('launchIncomingCall', {
+              'call_id': message.data['call_id'],
+              'caller_name': message.data['caller_name'] ?? 'Unknown',
+              'caller_pic': message.data['caller_pic'] ?? '',
+              'call_type': message.data['call_type'] ?? 'voice',
+            });
+          } catch (e) {
+            print('Error launching incoming call UI: $e');
+          }
+          return;
+        }
+      } catch (e) {
+        print('Error showing incoming call UI: $e');
+      }
+    }
+
     final senderImage = message.data['sender_image'];
     final senderName = message.data['sender_name'] ?? 'Someone';
     final notificationTitle = message.notification?.title ?? senderName;
     String notificationBody =
         message.notification?.body ?? 'You have a new message!';
 
-    // Only append call type for call notifications, not chat
+    // Handle incoming call notifications differently
     if (message.data['call_type'] != null && message.data['type'] != 'chat') {
       final callType = message.data['call_type'] ?? 'voice';
       final callTypeText = callType == 'video' ? 'Video Call' : 'Voice Call';
@@ -168,6 +231,17 @@ class FirebaseApi {
     );
   }
 
+  static Future<String> _getPackageName() async {
+    try {
+      const platform = MethodChannel('app_channel');
+      final packageName = await platform.invokeMethod('getPackageName');
+      return packageName.toString();
+    } catch (e) {
+      print('Error getting package name: $e');
+      return 'com.example.chat_app'; // Fallback package name
+    }
+  }
+
   static Future<void> navigateToCallScreen(String callId) async {
     try {
       final callDoc =
@@ -225,11 +299,45 @@ class FirebaseApi {
       options: DefaultFirebaseOptions.currentPlatform,
     );
 
-    // Print FCM token for debugging
-    final token = await _firebaseMessaging.getToken();
-    print('❤️❤️❤️❤️❤️❤️❤️❤️❤️❤️❤️❤️❤️❤️❤️❤️❤️FCM Token: ' + (token ?? 'null'));
+    // Request all necessary permissions
+    await _firebaseMessaging.requestPermission(
+      alert: true,
+      badge: true,
+      sound: true,
+      provisional: false,
+      criticalAlert: true,
+      announcement: true,
+      carPlay: true,
+    );
 
-    // Local notifications setup
+    // Set foreground notification presentation options
+    await _firebaseMessaging.setForegroundNotificationPresentationOptions(
+      alert: true,
+      badge: true,
+      sound: true,
+    );
+
+    // Create high-priority call notification channel
+    final AndroidNotificationChannel callChannel = AndroidNotificationChannel(
+      'call_channel',
+      'Call Notifications',
+      description: 'Channel for incoming call notifications',
+      importance: Importance.max,
+      enableLights: true,
+      enableVibration: true,
+      playSound: true,
+      sound: RawResourceAndroidNotificationSound('ringtone'),
+      showBadge: true,
+    );
+
+    // Create the notification channels
+    await _localNotifications
+        .resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin
+        >()
+        ?.createNotificationChannel(callChannel);
+
+    // Local notifications setup with full-screen intent permission
     const AndroidInitializationSettings initializationSettingsAndroid =
         AndroidInitializationSettings('@mipmap/ic_launcher');
     const InitializationSettings initializationSettings =
@@ -246,28 +354,31 @@ class FirebaseApi {
 
         if (notificationResponse.payload != null) {
           try {
-            if (notificationResponse.payload == 'missed_call') {
-              // For missed calls, always navigate to call logs tab
-              Get.offAllNamed('/homePage', arguments: {'tabIndex': 2});
-              return;
-            }
-
             final data = jsonDecode(notificationResponse.payload!);
-            if (data['type'] == 'chat' &&
-                data['room_id'] != null &&
-                data['sender_id'] != null) {
-              await navigateToChatPage(data['room_id'], data['sender_id']);
-              return;
-            }
 
-            // Handle call ID payload (for active calls)
-            final uuidRegex = RegExp(r'^[0-9a-fA-F-]{36}$');
-            if (uuidRegex.hasMatch(notificationResponse.payload!)) {
-              await navigateToCallScreen(notificationResponse.payload!);
+            if (data['type'] == 'call') {
+              // Handle incoming call notification tap
+              final callDoc =
+                  await FirebaseFirestore.instance
+                      .collection('calls')
+                      .doc(data['call_id'])
+                      .get();
+
+              if (callDoc.exists) {
+                final callData = callDoc.data()!;
+                if (callData['status'] != 'ended') {
+                  Get.to(() => IncomingCallPage(callData: callData));
+                } else {
+                  // Call ended, go to call logs
+                  Get.offAllNamed('/homePage', arguments: {'tabIndex': 2});
+                }
+              }
+            } else if (data['type'] == 'chat') {
+              // Handle chat notification tap
+              await navigateToChatPage(data['room_id'], data['sender_id']);
             }
           } catch (e) {
             print('Error handling notification tap: $e');
-            // Default to home page on error
             Get.offAllNamed('/homePage');
           }
         }
@@ -275,11 +386,12 @@ class FirebaseApi {
       onDidReceiveBackgroundNotificationResponse: notificationTapBackground,
     );
 
+    // Print FCM token for debugging
+    final token = await _firebaseMessaging.getToken();
+    print('❤️❤️❤️❤️❤️❤️❤️❤️❤️❤️❤️❤️❤️❤️❤️❤️❤️FCM Token: ' + (token ?? 'null'));
+
     // FCM background handler
     FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
-
-    // Request notification permissions
-    await _firebaseMessaging.requestPermission();
 
     // Handle foreground messages
     FirebaseMessaging.onMessage.listen((RemoteMessage message) {
@@ -308,5 +420,54 @@ class FirebaseApi {
 
   static Future<String?> getToken() async {
     return await _firebaseMessaging.getToken();
+  }
+
+  static Future<String?> getDeviceToken(String userId) async {
+    try {
+      final userDoc =
+          await FirebaseFirestore.instance
+              .collection('users')
+              .doc(userId)
+              .get();
+      return userDoc.data()?['fcmToken'] as String?;
+    } catch (e) {
+      print('Error getting device token: $e');
+      return null;
+    }
+  }
+
+  static Future<void> sendPushNotification({
+    required String token,
+    required String title,
+    required String body,
+    required Map<String, dynamic> data,
+  }) async {
+    try {
+      final response = await http.post(
+        Uri.parse('https://fcm.googleapis.com/fcm/send'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'key=$_serverKey',
+        },
+        body: jsonEncode({
+          'to': token,
+          'notification': {
+            'title': title,
+            'body': body,
+            'sound': 'ringtone.mp3',
+            'android_channel_id': 'call_channel',
+          },
+          'data': data,
+          'priority': 'high',
+          'content_available': true,
+        }),
+      );
+
+      if (response.statusCode != 200) {
+        throw Exception('Failed to send FCM notification');
+      }
+    } catch (e) {
+      print('Error sending push notification: $e');
+    }
   }
 }

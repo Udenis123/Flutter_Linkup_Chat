@@ -11,6 +11,7 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:chat_app/Config/FirebaseApi.dart';
 import 'package:chat_app/Controller/CallController.dart';
 import 'package:get/get.dart';
+import 'package:flutter/services.dart';
 
 final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
     FlutterLocalNotificationsPlugin();
@@ -68,11 +69,9 @@ Future<void> main() async {
   // Initialize CallController with proper error handling
   try {
     final callController = Get.put(CallController(), permanent: true);
-    // Add error handling for Zego initialization if needed
     await callController.initializeZegoServices();
   } catch (e) {
     print("Error initializing call services: $e");
-    // Handle initialization error appropriately
   }
 
   // Get the initial notification that launched the app

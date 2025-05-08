@@ -17,7 +17,7 @@ var pagePath = [
   GetPage(
     name: "/homePage",
     page: () => const Homepage(),
-    transition: Transition.rightToLeft,
+    transition: Transition.noTransition,
     transitionDuration: const Duration(milliseconds: 1000),
   ),
   // GetPage(

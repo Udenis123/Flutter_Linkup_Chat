@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:chat_app/Model/AudioCallModel.dart';
 import 'package:chat_app/Model/UserModel.dart';
 import 'package:chat_app/Pages/CallPage/AudioCallPage.dart';
@@ -10,6 +11,12 @@ import 'package:uuid/uuid.dart';
 import 'package:flutter_ringtone_player/flutter_ringtone_player.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:chat_app/Config/FirebaseApi.dart';
+import 'package:chat_app/Pages/CallPage/IncomingCallScreen.dart';
+import 'package:chat_app/Pages/CallPage/OutgoingCallScreen.dart';
+import 'package:chat_app/Pages/CallPage/OutgoingCallPage.dart';
+import 'package:chat_app/Pages/CallPage/VideoCallPage.dart';
 
 class CallController extends GetxController with WidgetsBindingObserver {
   final db = FirebaseFirestore.instance;
@@ -20,6 +27,7 @@ class CallController extends GetxController with WidgetsBindingObserver {
   RxString callStatus = ''.obs; // 'calling', 'ringing', 'accepted', 'ended'
   RxBool isCaller = false.obs;
   bool _isInitialized = false;
+  StreamSubscription<DocumentSnapshot>? _callSubscription;
 
   @override
   void onInit() {
@@ -27,11 +35,13 @@ class CallController extends GetxController with WidgetsBindingObserver {
     WidgetsBinding.instance.addObserver(this);
     initializeZegoServices();
     listenForIncomingCalls();
+    initializeCallHandling();
   }
 
   @override
   void onClose() {
     WidgetsBinding.instance.removeObserver(this);
+    _callSubscription?.cancel();
     super.onClose();
   }
 
@@ -60,6 +70,7 @@ class CallController extends GetxController with WidgetsBindingObserver {
     String callType = "voice",
   }) async {
     String callId = uuid;
+    final now = DateTime.now();
     var newCall = AudioCallModel(
       id: callId,
       callerName: caller.name,
@@ -73,88 +84,107 @@ class CallController extends GetxController with WidgetsBindingObserver {
       status: "calling",
       callType: callType,
       participants: [caller.id!, receiver.id!],
-      timestamp: DateTime.now(),
+      timestamp: now,
     );
     isCaller.value = true;
     currentCall.value = newCall;
     callStatus.value = 'calling';
+
     // Write to shared calls collection (for signaling/notifications)
-    await db.collection("calls").doc(callId).set(newCall.toJson());
+    final callData = newCall.toJson();
+    callData['accepted'] = false; // Add accepted field to the data
+    await db.collection("calls").doc(callId).set(callData);
+
     // Write to both users' callLogs subcollections (for user-specific logs)
     await db
         .collection('users')
         .doc(caller.id)
         .collection('callLogs')
         .doc(callId)
-        .set(newCall.toJson());
+        .set(callData);
     await db
         .collection('users')
         .doc(receiver.id)
         .collection('callLogs')
         .doc(callId)
-        .set(newCall.toJson());
+        .set(callData);
+
+    // Navigate to OutgoingCallPage for caller
+    Get.to(() => OutgoingCallPage(receiver: receiver, callType: callType));
+
+    // Listen to call status changes
     listenToCallStatus(callId);
   }
 
   // Listen for incoming calls (receiver)
   void listenForIncomingCalls() {
-    print('listenForIncomingCalls called');
     if (auth.currentUser?.uid == null) {
       print(
         'CallController: Not authenticated, skipping listenForIncomingCalls',
       );
       return;
     }
-    print('Listening for calls for uid: \\${auth.currentUser?.uid}');
+
     db
         .collection("calls")
         .where('receiverUid', isEqualTo: auth.currentUser?.uid)
         .where('status', isEqualTo: 'calling')
         .snapshots()
-        .listen((snapshot) {
-          print(
-            'Firestore snapshot received. docs.length = \\${snapshot.docs.length}',
-          );
+        .listen((snapshot) async {
           if (snapshot.docs.isNotEmpty) {
-            print('Incoming call detected!');
             var call = AudioCallModel.fromJson(snapshot.docs.first.data());
             currentCall.value = call;
             callStatus.value = 'ringing';
             isCaller.value = false;
-            print('Playing ringtone...');
-            FlutterRingtonePlayer().playRingtone();
-            // Show full-screen incoming call page if not already on it
+
+            // Create caller UserModel
+            final caller = UserModel(
+              id: call.callerUid,
+              name: call.callerName,
+              email: call.callerEmail,
+              profileImage: call.callerPic,
+            );
+
+            // Show incoming call UI
             if (Get.currentRoute != '/incomingCall') {
-              print('Navigating to IncomingCallPage');
               Get.to(
                 () => IncomingCallPage(callData: snapshot.docs.first.data()),
                 routeName: '/incomingCall',
               );
             }
-            // Listen for call end (caller hangs up before accept)
+
+            // Listen for call end
             db.collection("calls").doc(call.id).snapshots().listen((doc) {
-              print(
-                'Call doc snapshot: exists=\\${doc.exists}, status=\\${doc.data()?['status']}',
-              );
-              if (!doc.exists || (doc.data()?['status'] == 'ended')) {
-                print(
-                  'Call ended or doc deleted. Stopping ringtone and closing page.',
-                );
-                FlutterRingtonePlayer().stop();
+              if (!doc.exists || doc.data()?['status'] == 'ended') {
                 callStatus.value = '';
                 currentCall.value = null;
-                // Close IncomingCallPage if open
                 if (Get.currentRoute == '/incomingCall') {
                   Get.back();
                 }
+              } else if (doc.data()?['status'] == 'accepted') {
+                // Navigate to appropriate call page based on call type
+                final target =
+                    isCaller.value
+                        ? UserModel(
+                          id: call.receiverUid,
+                          name: call.receiverName,
+                          email: call.receiverEmail,
+                          profileImage: call.receiverPic,
+                        )
+                        : UserModel(
+                          id: call.callerUid,
+                          name: call.callerName,
+                          email: call.callerEmail,
+                          profileImage: call.callerPic,
+                        );
+
+                if (call.callType == 'video') {
+                  Get.off(() => VideoCallPage(target: target));
+                } else {
+                  Get.off(() => AudioCallPage(target: target));
+                }
               }
             });
-          } else {
-            print('No incoming call. Stopping ringtone and resetting UI.');
-            // No incoming call, ensure UI is reset
-            FlutterRingtonePlayer().stop();
-            callStatus.value = '';
-            currentCall.value = null;
           }
         });
   }
@@ -162,34 +192,138 @@ class CallController extends GetxController with WidgetsBindingObserver {
   // Accept call (receiver)
   Future<void> acceptCall() async {
     if (currentCall.value == null) return;
-    await db.collection("calls").doc(currentCall.value!.id).update({
-      'status': 'accepted',
-    });
-    callStatus.value = 'accepted';
-    FlutterRingtonePlayer().stop();
-    // Both users will join the room when status is 'accepted'
+
+    try {
+      final now = DateTime.now();
+      final updateData = {
+        'status': 'accepted',
+        'accepted': true,
+        'acceptedAt': now.toIso8601String(),
+        'timestamp': now.toIso8601String(),
+      };
+
+      // Update main call document
+      await db
+          .collection("calls")
+          .doc(currentCall.value!.id)
+          .update(updateData);
+
+      // Update call logs for both users
+      await db
+          .collection('users')
+          .doc(currentCall.value!.callerUid)
+          .collection('callLogs')
+          .doc(currentCall.value!.id)
+          .update(updateData);
+      await db
+          .collection('users')
+          .doc(currentCall.value!.receiverUid)
+          .collection('callLogs')
+          .doc(currentCall.value!.id)
+          .update(updateData);
+
+      callStatus.value = 'accepted';
+    } catch (e) {
+      print("Error accepting call: $e");
+      Get.snackbar(
+        'Error',
+        'Failed to accept call. Please try again.',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+      );
+    }
   }
 
   // Decline call (receiver)
   Future<void> declineCall() async {
     if (currentCall.value == null) return;
-    await db.collection("calls").doc(currentCall.value!.id).update({
-      'status': 'ended',
-    });
-    callStatus.value = 'ended';
-    FlutterRingtonePlayer().stop();
-    currentCall.value = null;
+
+    try {
+      final now = DateTime.now();
+      final updateData = {
+        'status': 'ended',
+        'accepted': false,
+        'endedAt': now.toIso8601String(),
+        'endReason': 'declined',
+        'timestamp': now.toIso8601String(),
+      };
+
+      // Update main call document
+      await db
+          .collection("calls")
+          .doc(currentCall.value!.id)
+          .update(updateData);
+
+      // Update call logs for both users
+      await db
+          .collection('users')
+          .doc(currentCall.value!.callerUid)
+          .collection('callLogs')
+          .doc(currentCall.value!.id)
+          .update(updateData);
+      await db
+          .collection('users')
+          .doc(currentCall.value!.receiverUid)
+          .collection('callLogs')
+          .doc(currentCall.value!.id)
+          .update(updateData);
+
+      callStatus.value = 'ended';
+      await FlutterRingtonePlayer().stop();
+      currentCall.value = null;
+
+      // Navigate back to home page
+      Get.offAllNamed('/homePage', arguments: {'tabIndex': 2});
+    } catch (e) {
+      print("Error declining call: $e");
+    }
   }
 
   // End call (either side)
   Future<void> endCall() async {
     if (currentCall.value == null) return;
-    await db.collection("calls").doc(currentCall.value!.id).update({
-      'status': 'ended',
-    });
-    callStatus.value = 'ended';
-    FlutterRingtonePlayer().stop();
-    currentCall.value = null;
+
+    try {
+      final now = DateTime.now();
+      final updateData = {
+        'status': 'ended',
+        'endedAt': now.toIso8601String(),
+        'endReason': isCaller.value ? 'ended_by_caller' : 'ended_by_receiver',
+        'accepted':
+            false, // Explicitly set accepted to false if call wasn't accepted
+        'timestamp': now.toIso8601String(),
+      };
+
+      // Update main call document
+      await db
+          .collection("calls")
+          .doc(currentCall.value!.id)
+          .update(updateData);
+
+      // Update call logs for both users
+      await db
+          .collection('users')
+          .doc(currentCall.value!.callerUid)
+          .collection('callLogs')
+          .doc(currentCall.value!.id)
+          .update(updateData);
+      await db
+          .collection('users')
+          .doc(currentCall.value!.receiverUid)
+          .collection('callLogs')
+          .doc(currentCall.value!.id)
+          .update(updateData);
+
+      callStatus.value = 'ended';
+      await FlutterRingtonePlayer().stop();
+      currentCall.value = null;
+
+      // Navigate to HomePage
+      Get.offAllNamed('/homePage', arguments: {'tabIndex': 2});
+    } catch (e) {
+      print("Error ending call: $e");
+    }
   }
 
   // Listen to call status changes (for both caller and receiver)
@@ -199,13 +333,33 @@ class CallController extends GetxController with WidgetsBindingObserver {
       var call = AudioCallModel.fromJson(doc.data()!);
       currentCall.value = call;
       callStatus.value = call.status ?? '';
+
       if (call.status == 'accepted') {
-        FlutterRingtonePlayer().stop();
-        // Both users join the Zego room (handled in UI)
+        // Navigate to appropriate call page
+        final target =
+            isCaller.value
+                ? UserModel(
+                  id: call.receiverUid,
+                  name: call.receiverName,
+                  email: call.receiverEmail,
+                  profileImage: call.receiverPic,
+                )
+                : UserModel(
+                  id: call.callerUid,
+                  name: call.callerName,
+                  email: call.callerEmail,
+                  profileImage: call.callerPic,
+                );
+
+        if (call.callType == 'video') {
+          Get.off(() => VideoCallPage(target: target));
+        } else {
+          Get.off(() => AudioCallPage(target: target));
+        }
       } else if (call.status == 'ended') {
-        FlutterRingtonePlayer().stop();
         currentCall.value = null;
-        // Both users return to chat (handled in UI)
+        // Ensure both users exit call and return to HomePage
+        Get.offAllNamed('/homePage', arguments: {'tabIndex': 2});
       }
     });
   }
@@ -225,6 +379,190 @@ class CallController extends GetxController with WidgetsBindingObserver {
     } catch (e) {
       print("Error initializing Zego services: $e");
       _isInitialized = false;
+    }
+  }
+
+  Future<void> handleIncomingCall(
+    String callId,
+    String callerName,
+    String callerPic,
+    String callType,
+  ) async {
+    try {
+      // Check if the call is still active
+      final callDoc =
+          await FirebaseFirestore.instance
+              .collection('calls')
+              .doc(callId)
+              .get();
+
+      if (!callDoc.exists || callDoc.data()?['status'] != 'calling') {
+        return;
+      }
+
+      // Start playing ringtone
+      await FlutterRingtonePlayer().play(
+        android: AndroidSounds.ringtone,
+        ios: IosSounds.glass,
+        looping: true,
+        volume: 1.0,
+        asAlarm: true,
+      );
+
+      // Show the incoming call screen
+      Get.to(
+        () => IncomingCallScreen(
+          callId: callId,
+          callerName: callerName,
+          callerPic: callerPic,
+          callType: callType,
+        ),
+      );
+
+      // Listen for call status changes
+      _callSubscription = FirebaseFirestore.instance
+          .collection('calls')
+          .doc(callId)
+          .snapshots()
+          .listen((snapshot) async {
+            if (!snapshot.exists || snapshot.data()?['status'] == 'ended') {
+              // Stop ringtone and close incoming call screen
+              await FlutterRingtonePlayer().stop();
+              Get.back();
+              _callSubscription?.cancel();
+            }
+          });
+    } catch (e) {
+      print('Error handling incoming call: $e');
+    }
+  }
+
+  Future<void> initializeCallHandling() async {
+    // Handle incoming call when app is in foreground
+    FirebaseMessaging.onMessage.listen((RemoteMessage message) async {
+      if (message.data['type'] == 'call') {
+        await handleIncomingCall(
+          message.data['call_id'],
+          message.data['caller_name'],
+          message.data['caller_pic'],
+          message.data['call_type'],
+        );
+      }
+    });
+
+    // Handle notification click when app is in background
+    FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) async {
+      if (message.data['type'] == 'call') {
+        await handleIncomingCall(
+          message.data['call_id'],
+          message.data['caller_name'],
+          message.data['caller_pic'],
+          message.data['call_type'],
+        );
+      }
+    });
+
+    // Handle initial notification when app is terminated
+    final initialMessage = await FirebaseMessaging.instance.getInitialMessage();
+    if (initialMessage?.data['type'] == 'call') {
+      await handleIncomingCall(
+        initialMessage!.data['call_id'],
+        initialMessage.data['caller_name'],
+        initialMessage.data['caller_pic'],
+        initialMessage.data['call_type'],
+      );
+    }
+  }
+
+  // Call this method when making an outgoing call
+  Future<void> makeCall(
+    String receiverId,
+    String receiverName,
+    String receiverPic,
+    String callType,
+  ) async {
+    try {
+      final currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser == null) return;
+
+      final callId = const Uuid().v4();
+      final callData = {
+        'call_id': callId,
+        'caller_id': currentUser.uid,
+        'caller_name': currentUser.displayName ?? 'Unknown',
+        'caller_pic': currentUser.photoURL ?? '',
+        'receiver_id': receiverId,
+        'receiver_name': receiverName,
+        'receiver_pic': receiverPic,
+        'call_type': callType,
+        'status': 'calling',
+        'timestamp': FieldValue.serverTimestamp(),
+      };
+
+      // Save call data to Firestore
+      await FirebaseFirestore.instance
+          .collection('calls')
+          .doc(callId)
+          .set(callData);
+
+      // Get receiver's FCM token and send notification
+      final receiverToken = await FirebaseApi.getDeviceToken(receiverId);
+      if (receiverToken != null) {
+        await FirebaseApi.sendPushNotification(
+          token: receiverToken,
+          title: 'Incoming ${callType.capitalizeFirst ?? 'Voice'} Call',
+          body: '${currentUser.displayName ?? 'Someone'} is calling...',
+          data: {
+            'type': 'call',
+            'call_id': callId,
+            'caller_name': currentUser.displayName ?? 'Unknown',
+            'caller_pic': currentUser.photoURL ?? '',
+            'call_type': callType,
+          },
+        );
+      }
+
+      // Navigate to outgoing call screen
+      Get.to(
+        () => OutgoingCallScreen(
+          callId: callId,
+          receiverName: receiverName,
+          receiverPic: receiverPic,
+          callType: callType,
+        ),
+      );
+
+      // Listen for call status changes
+      _callSubscription?.cancel(); // Cancel any existing subscription
+      _callSubscription = FirebaseFirestore.instance
+          .collection('calls')
+          .doc(callId)
+          .snapshots()
+          .listen((snapshot) {
+            if (!snapshot.exists || snapshot.data()?['status'] == 'ended') {
+              Get.back();
+              _callSubscription?.cancel();
+            } else if (snapshot.data()?['status'] == 'accepted') {
+              // Initialize call when accepted
+              _initializeCall(callId, currentUser.uid);
+            }
+          });
+    } catch (e) {
+      print('Error making call: $e');
+    }
+  }
+
+  Future<void> _initializeCall(String callId, String userId) async {
+    try {
+      // Initialize your call service here (e.g., Zego, Agora, etc.)
+      // This is a placeholder - replace with your actual call initialization code
+      print('Initializing call: $callId for user: $userId');
+
+      // Example:
+      // await zegoEngine.startPreview();
+      // await zegoEngine.joinRoom(callId);
+    } catch (e) {
+      print('Error initializing call: $e');
     }
   }
 }

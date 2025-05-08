@@ -15,23 +15,40 @@ exports.sendMissedCallNotification = onDocumentUpdated(
     const before = event.data.before.data();
     const after = event.data.after.data();
 
-    // Only send if status changed to 'ended' and was not accepted
+    // Send notification if:
+    // 1. Call status changed to 'ended'
+    // 2. Call was not accepted
+    // 3. Either:
+    //    a) Call was ended by caller (endReason === 'ended_by_caller')
+    //    b) Call was missed (no interaction from receiver)
+    //    c) Call timed out
     if (
       before.status !== "ended" &&
       after.status === "ended" &&
-      before.status !== "accepted"
+      !after.accepted &&
+      after.receiverUid // Make sure we have a receiver to notify
     ) {
       const receiverUid = after.receiverUid;
       const callerName = after.callerName || "Someone";
       const callType = after.callType || "voice";
-      const callId = after.id;
+      const callId = event.params.callId; // Use the actual document ID
 
       // Get receiver's FCM token
       const userDoc = await getFirestore()
         .collection("users")
         .doc(receiverUid)
         .get();
+
+      if (!userDoc.exists) {
+        console.log("Receiver document not found:", receiverUid);
+        return;
+      }
+
       const fcmToken = userDoc.data().fcmToken;
+      if (!fcmToken) {
+        console.log("No FCM token found for receiver:", receiverUid);
+        return;
+      }
 
       // Get caller's profile image or use default
       const defaultImage =
@@ -42,8 +59,9 @@ exports.sendMissedCallNotification = onDocumentUpdated(
           .collection("users")
           .doc(after.callerUid)
           .get();
-        callerImage = callerDoc.data().profileImage || defaultImage;
+        callerImage = callerDoc.data()?.profileImage || defaultImage;
       } catch (e) {
+        console.error("Error fetching caller image:", e);
         callerImage = defaultImage;
       }
 
@@ -52,7 +70,7 @@ exports.sendMissedCallNotification = onDocumentUpdated(
         const callLogData = {
           ...after,
           status: "missed", // Mark explicitly as missed
-          timestamp: new Date().toISOString(), // Update timestamp to when it was missed
+          timestamp: new Date().toISOString(),
           accepted: false,
         };
 
@@ -68,47 +86,77 @@ exports.sendMissedCallNotification = onDocumentUpdated(
         console.error("Error updating call log:", error);
       }
 
-      if (fcmToken) {
-        const message = {
-          token: fcmToken,
+      // Prepare notification message
+      const message = {
+        token: fcmToken,
+        notification: {
+          title: "Missed Call",
+          body:
+            after.endReason === "ended_by_caller"
+              ? `📞 ${callerName} cancelled their ${callType} call`
+              : `📞 Missed ${callType} call from ${callerName}`,
+        },
+        data: {
+          type: "missed_call",
+          call_type: callType,
+          caller_name: callerName,
+          caller_image: callerImage,
+          call_id: callId,
+          end_reason: after.endReason || "missed",
+          click_action: "FLUTTER_NOTIFICATION_CLICK",
+          timestamp: after.timestamp || new Date().toISOString(),
+        },
+        android: {
+          priority: "high",
           notification: {
-            title: "Missed Call",
-            body: `📞 Missed ${callType} call from ${callerName}`,
+            channel_id: "call_channel",
+            priority: "max",
+            sound: "default",
+            default_vibrate_timings: true,
+            icon: "@mipmap/ic_launcher",
+            color: "#FF0000",
+            notification_count: 1,
+            visibility: "public",
           },
-          data: {
-            type: "missed_call",
-            call_type: callType,
-            caller_name: callerName,
-            caller_image: callerImage,
-            call_id: callId,
-            click_action: "FLUTTER_NOTIFICATION_CLICK",
+        },
+        apns: {
+          headers: {
+            "apns-priority": "10",
           },
-          android: {
-            priority: "high",
-            notification: {
-              channel_id: "call_channel",
-              priority: "high",
-              default_sound: true,
-              default_vibrate_timings: true,
-            },
-          },
-          apns: {
-            headers: {
-              "apns-priority": "10",
-            },
-            payload: {
-              aps: {
-                sound: "default",
-                badge: 1,
+          payload: {
+            aps: {
+              sound: "default",
+              badge: 1,
+              "content-available": 1,
+              "mutable-content": 1,
+              alert: {
+                title: "Missed Call",
+                body:
+                  after.endReason === "ended_by_caller"
+                    ? `${callerName} cancelled their ${callType} call`
+                    : `Missed ${callType} call from ${callerName}`,
+                "thread-id": "missed_calls",
               },
+              category: "missed_call",
             },
+            imageUrl: callerImage,
           },
-        };
-        try {
-          await getMessaging().send(message);
-        } catch (error) {
-          console.error("Error sending missed call notification:", error);
-        }
+        },
+      };
+
+      // Add image to notification if available
+      if (callerImage && callerImage !== defaultImage) {
+        message.notification.image = callerImage;
+      }
+
+      try {
+        await getMessaging().send(message);
+        console.log(
+          "Successfully sent missed call notification to:",
+          receiverUid
+        );
+      } catch (error) {
+        console.error("Error sending missed call notification:", error);
       }
     }
   }
