@@ -114,6 +114,31 @@ class Chatbubble extends StatelessWidget {
       );
     }
 
+    // Helper function to get the appropriate status icon
+    Widget _getStatusIcon() {
+      if (isComming)
+        return SizedBox.shrink(); // No status icon for incoming messages
+
+      switch (status) {
+        case 'pending':
+          return Icon(Icons.access_time, color: Colors.white70, size: 15);
+        case 'sent':
+          return Icon(Icons.check, color: Colors.white70, size: 15);
+        case 'delivered':
+          return Icon(Icons.done_all, color: Colors.white70, size: 15);
+        case 'read':
+          return Icon(
+            Icons.done_all,
+            color: Colors.blue[300]!, // Blue tick for read messages
+            size: 15,
+          );
+        case 'failed':
+          return Icon(Icons.error_outline, color: Colors.red[300], size: 15);
+        default:
+          return Icon(Icons.check, color: Colors.white70, size: 15);
+      }
+    }
+
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 10),
       child: Row(
@@ -242,13 +267,7 @@ class Chatbubble extends StatelessWidget {
                           ),
                           if (!isComming) ...[
                             SizedBox(width: 4),
-                            Icon(
-                              status == 'pending' || status == 'failed'
-                                  ? Icons.access_time
-                                  : Icons.done_all,
-                              color: Colors.white70,
-                              size: 15,
-                            ),
+                            _getStatusIcon(),
                           ],
                         ],
                       ),

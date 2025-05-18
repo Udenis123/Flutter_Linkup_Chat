@@ -14,6 +14,8 @@ class GroupModel {
   String? lastMessageBy;
   int? unReadCount;
   String? timeStamp;
+  Map<String, dynamic>? memberUnreadStatus;
+  String? lastSenderId;
 
   GroupModel({
     this.id,
@@ -29,6 +31,8 @@ class GroupModel {
     this.lastMessageBy,
     this.unReadCount,
     this.timeStamp,
+    this.memberUnreadStatus,
+    this.lastSenderId,
   }) : members = members ?? []; // Initialize members to an empty list if null
 
   GroupModel.fromJson(Map<String, dynamic> json)
@@ -48,7 +52,12 @@ class GroupModel {
       lastMessageTime = json['lastMessageTime'],
       lastMessageBy = json['lastMessageBy'],
       unReadCount = json['unReadCount'],
-      timeStamp = json['timeStamp'];
+      timeStamp = json['timeStamp'],
+      memberUnreadStatus =
+          json['memberUnreadStatus'] != null
+              ? Map<String, dynamic>.from(json['memberUnreadStatus'])
+              : {},
+      lastSenderId = json['lastSenderId'];
 
   Map<String, dynamic> toJson() {
     final Map<String, dynamic> data = <String, dynamic>{};
@@ -65,6 +74,8 @@ class GroupModel {
     data['lastMessageBy'] = lastMessageBy;
     data['unReadCount'] = unReadCount;
     data['timeStamp'] = timeStamp;
+    data['memberUnreadStatus'] = memberUnreadStatus;
+    data['lastSenderId'] = lastSenderId;
     return data;
   }
 }

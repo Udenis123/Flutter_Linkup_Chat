@@ -33,6 +33,11 @@ class ChatPage extends StatelessWidget {
     ProfileController profileController = Get.put(ProfileController());
     CallController callController = Get.find<CallController>();
 
+    // Mark messages as delivered when chat page is loaded
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      chatController.markMessagesAsDelivered(userModel.id!);
+    });
+
     return Obx(() {
       // If there is an active call, show the call UI
       if (callController.currentCall.value != null &&
@@ -363,7 +368,7 @@ class ChatPage extends StatelessWidget {
                                     snapshot.data![index].senderId !=
                                     profileController.currentUser.value.id,
                                 time: formattedTime,
-                                status: "read",
+                                status: snapshot.data![index].status ?? "sent",
                               );
                             },
                           );

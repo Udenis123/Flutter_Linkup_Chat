@@ -26,39 +26,45 @@ class ChatsList extends StatelessWidget {
         }
         return ListView(
           children:
-              snapshot.data!
-                  .map(
-                    (e) => InkWell(
-                      onTap: () {
-                        Get.to(
-                          ChatPage(
-                            userModel:
-                                (e.receiver!.id == currentUserId
-                                    ? e.sender
-                                    : e.receiver)!,
-                          ),
-                        );
-                      },
-                      child: ChatTile(
-                        imageUrl:
+              snapshot.data!.map((e) {
+                // Determine if the current user is the receiver of the last message
+                bool isCurrentUserReceiver = e.receiver?.id == currentUserId;
+
+                // Only show unread count if current user is the receiver
+                int unreadCount =
+                    isCurrentUserReceiver ? (e.unReadMessNo ?? 0) : 0;
+
+                return InkWell(
+                  onTap: () {
+                    Get.to(
+                      ChatPage(
+                        userModel:
                             (e.receiver!.id == currentUserId
-                                ? e.sender!.profileImage
-                                : e.receiver!.profileImage) ??
-                            AssetsImage.defaultImage,
-                        name:
-                            (e.receiver!.id == currentUserId
-                                ? e.sender!.name
-                                : e.receiver!.name)!,
-                        lastChat: e.lastMessage ?? "Last Message",
-                        lastTime: e.lastMessageTimestamp ?? "Last time",
-                        userId:
-                            (e.receiver!.id == currentUserId
-                                ? e.sender!.id
-                                : e.receiver!.id)!,
+                                ? e.sender
+                                : e.receiver)!,
                       ),
-                    ),
-                  )
-                  .toList(),
+                    );
+                  },
+                  child: ChatTile(
+                    imageUrl:
+                        (e.receiver!.id == currentUserId
+                            ? e.sender!.profileImage
+                            : e.receiver!.profileImage) ??
+                        AssetsImage.defaultImage,
+                    name:
+                        (e.receiver!.id == currentUserId
+                            ? e.sender!.name
+                            : e.receiver!.name)!,
+                    lastChat: e.lastMessage ?? "Last Message",
+                    lastTime: e.lastMessageTimestamp ?? "Last time",
+                    userId:
+                        (e.receiver!.id == currentUserId
+                            ? e.sender!.id
+                            : e.receiver!.id)!,
+                    unreadCount: unreadCount,
+                  ),
+                );
+              }).toList(),
         );
       },
     );

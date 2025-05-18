@@ -50,6 +50,11 @@ class GroupChatPage extends StatelessWidget {
     GroupController groupController = Get.put(GroupController());
     ProfileController profileController = Get.put(ProfileController());
 
+    // Reset unread count when the chat is opened
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      groupController.resetGroupUnreadCount(groupModel.id!);
+    });
+
     return Scaffold(
       appBar: AppBar(
         leading: InkWell(

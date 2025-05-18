@@ -60,6 +60,11 @@ class ChatController extends GetxController {
     String roomId = getRoomId(targetUserId);
     DateTime timestamp = DateTime.now();
     String nowTime = DateFormat('hh:mm a').format(timestamp);
+
+    // Get current user ID for clarity
+    String currentUserId = auth.currentUser!.uid;
+
+    // Determine sender and receiver for the chat room
     UserModel sender = getSender(
       profileController.currentUser.value,
       targetUser,
@@ -92,12 +97,42 @@ class ChatController extends GetxController {
       message: message,
       imageUrl: imageUrl.value,
       videoUrl: mediaUrl.value,
-      senderId: auth.currentUser!.uid,
+      senderId: currentUserId,
       receiverId: targetUserId,
       senderName: profileController.currentUser.value.name,
       timestamp: DateTime.now().toString(),
-      status: messageStatus, // set status
+      status: messageStatus,
+      readStatus: 'unread',
     );
+
+    // Get the current chat room data if it exists
+    DocumentSnapshot? roomDoc;
+    try {
+      roomDoc = await db.collection("chats").doc(roomId).get();
+    } catch (e) {
+      print("Error getting chat room: $e");
+    }
+
+    // CRITICAL FIX: Always set unread count to 1 for new messages from current user to target
+    // The unread count is for the target user (receiver of THIS message), not the current user
+    int newUnreadCount = 1;
+
+    // If the current user is sending a message to the target user,
+    // the target user should see 1 unread message (or increment if there were previous unread)
+    if (roomDoc != null && roomDoc.exists) {
+      final roomData = roomDoc.data() as Map<String, dynamic>?;
+      if (roomData != null) {
+        // Check who the last sender was
+        if (roomData['sender'] != null &&
+            roomData['sender']['id'] == currentUserId) {
+          // Current user was already the last sender, so increment the unread count
+          int currentUnreadCount = roomData['unReadMessNo'] ?? 0;
+          newUnreadCount = currentUnreadCount + 1;
+        }
+        // If the current user was previously the receiver, the count resets to 1
+        // because we're now sending a new message to the other user
+      }
+    }
 
     var roomDetails = ChatRoomModel(
       id: roomId,
@@ -108,10 +143,14 @@ class ChatController extends GetxController {
               ? "📷📷"
               : "🎥🎥",
       lastMessageTimestamp: nowTime,
-      sender: sender,
-      receiver: receiver,
+      sender:
+          profileController
+              .currentUser
+              .value, // Current user is always the sender of this message
+      receiver:
+          targetUser, // Target user is always the receiver of this message
       timestamp: DateTime.now().toString(),
-      unReadMessNo: 0,
+      unReadMessNo: newUnreadCount,
     );
 
     try {
@@ -125,8 +164,6 @@ class ChatController extends GetxController {
         await db.collection("chats").doc(roomId).set(roomDetails.toJson());
         await contactController.saveContact(targetUser);
       } else {
-        // Optionally, store locally or handle pending messages
-        // For now, just print or handle as needed
         print('Message is pending due to no internet connection.');
       }
       selectedImagePath.value = "";
@@ -139,6 +176,9 @@ class ChatController extends GetxController {
 
   Stream<List<ChatModel>> getMessages(String targetUserId) {
     String roomId = getRoomId(targetUserId);
+
+    markMessagesAsRead(roomId, targetUserId);
+
     return db
         .collection("chats")
         .doc(roomId)
@@ -153,13 +193,79 @@ class ChatController extends GetxController {
         );
   }
 
+  Future<void> markMessagesAsRead(String roomId, String targetUserId) async {
+    try {
+      // First, update the unread count in the chat room document
+      // Only reset the unread count if the current user is the receiver
+      final roomDoc = await db.collection("chats").doc(roomId).get();
+      if (roomDoc.exists) {
+        final roomData = roomDoc.data() as Map<String, dynamic>?;
+        if (roomData != null &&
+            roomData['receiver'] != null &&
+            roomData['receiver']['id'] == auth.currentUser!.uid) {
+          // Only reset the unread count if the current user is the receiver
+          await db.collection("chats").doc(roomId).update({'unReadMessNo': 0});
+
+          // Also update the sender/receiver to reflect the current state
+          // This is important for when the user replies
+          await db.collection("chats").doc(roomId).update({
+            'receiver': roomData['sender'],
+            'sender': roomData['receiver'],
+          });
+        }
+      }
+
+      // Then, mark all unread messages as read where current user is the receiver
+      final batch = db.batch();
+      final messagesSnapshot =
+          await db
+              .collection("chats")
+              .doc(roomId)
+              .collection("messages")
+              .where("receiverId", isEqualTo: auth.currentUser!.uid)
+              .where("readStatus", isEqualTo: "unread")
+              .get();
+
+      for (var doc in messagesSnapshot.docs) {
+        batch.update(doc.reference, {'readStatus': 'read', 'status': 'read'});
+      }
+
+      await batch.commit();
+    } catch (e) {
+      print("Error marking messages as read: $e");
+    }
+  }
+
+  Future<void> markMessagesAsDelivered(String targetUserId) async {
+    try {
+      String roomId = getRoomId(targetUserId);
+
+      final batch = db.batch();
+      final messagesSnapshot =
+          await db
+              .collection("chats")
+              .doc(roomId)
+              .collection("messages")
+              .where("receiverId", isEqualTo: auth.currentUser!.uid)
+              .where("status", isEqualTo: "sent")
+              .get();
+
+      for (var doc in messagesSnapshot.docs) {
+        batch.update(doc.reference, {'status': 'delivered'});
+      }
+
+      await batch.commit();
+    } catch (e) {
+      print("Error marking messages as delivered: $e");
+    }
+  }
+
   Stream<UserModel> getStatus(String uuid) {
     return db.collection('users').doc(uuid).snapshots().map((event) {
       return UserModel.fromJson(event.data()!);
     });
   }
 
-  // Set typing status for the current user
   Future<void> setTypingStatus(bool isTyping) async {
     final user = auth.currentUser;
     if (user == null) return;

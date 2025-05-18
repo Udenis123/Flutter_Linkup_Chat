@@ -1,6 +1,7 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class ChatTile extends StatelessWidget {
   final String imageUrl;
@@ -8,6 +9,7 @@ class ChatTile extends StatelessWidget {
   final lastChat;
   final String lastTime;
   final String userId;
+  final int? unreadCount;
   const ChatTile({
     super.key,
     required this.lastChat,
@@ -15,10 +17,13 @@ class ChatTile extends StatelessWidget {
     required this.imageUrl,
     required this.name,
     required this.userId,
+    this.unreadCount,
   });
 
   @override
   Widget build(BuildContext context) {
+    final currentUserId = FirebaseAuth.instance.currentUser!.uid;
+
     return Container(
       margin: EdgeInsets.only(top: 10),
       padding: EdgeInsets.all(10),
@@ -69,13 +74,30 @@ class ChatTile extends StatelessWidget {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(name, style: Theme.of(context).textTheme.bodyLarge),
+                  Text(
+                    name,
+                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                      fontWeight:
+                          (unreadCount != null && unreadCount! > 0)
+                              ? FontWeight.bold
+                              : FontWeight.normal,
+                    ),
+                  ),
                   SizedBox(height: 7),
                   Container(
                     width: 200,
                     child: Text(
                       lastChat,
-                      style: Theme.of(context).textTheme.labelMedium,
+                      style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                        fontWeight:
+                            (unreadCount != null && unreadCount! > 0)
+                                ? FontWeight.bold
+                                : FontWeight.normal,
+                        color:
+                            (unreadCount != null && unreadCount! > 0)
+                                ? Theme.of(context).colorScheme.primary
+                                : null,
+                      ),
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
@@ -83,12 +105,36 @@ class ChatTile extends StatelessWidget {
               ),
             ],
           ),
-          // Limit time text width
-          Text(
-            lastTime,
-            style: Theme.of(context).textTheme.labelMedium,
-            overflow: TextOverflow.ellipsis,
-            textAlign: TextAlign.right,
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              // Time text
+              Text(
+                lastTime,
+                style: Theme.of(context).textTheme.labelMedium,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.right,
+              ),
+
+              // Unread message count badge
+              if (unreadCount != null && unreadCount! > 0)
+                Container(
+                  margin: EdgeInsets.only(top: 5),
+                  padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.primary,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    unreadCount.toString(),
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+            ],
           ),
         ],
       ),

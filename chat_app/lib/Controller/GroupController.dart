@@ -112,16 +112,33 @@ class GroupController extends GetxController {
     String videoPath,
   ) async {
     var chatId = Uuid().v6();
+    final currentUserId = auth.currentUser!.uid;
+
+    // Get current group data to update unread count
+    final groupDoc = await db.collection("groups").doc(groupId).get();
+    if (!groupDoc.exists) return;
+
+    final group = GroupModel.fromJson(groupDoc.data()!);
+
+    // Create a map to track unread status for each member
+    Map<String, dynamic> memberUnreadStatus = {};
+
+    // Set unread status for each member except the sender
+    for (var member in group.members ?? []) {
+      if (member.id != currentUserId) {
+        memberUnreadStatus[member.id!] = true;
+      }
+    }
+
+    // Count members who need to see unread message (everyone except sender)
+    final unreadCount =
+        (group.members?.length ?? 0) > 0 ? (group.members!.length - 1) : 0;
 
     if (imagePath == "" && videoPath == "") {
-      var groupDetails = GroupModel(
-        lastMessageTime: DateTime.now().toString(),
-        lastmessage: message,
-      );
       var newChat = ChatModel(
         id: chatId,
         message: message,
-        senderId: auth.currentUser!.uid,
+        senderId: currentUserId,
         senderName: profileController.currentUser.value.name,
         timestamp: DateTime.now().toString(),
       );
@@ -135,6 +152,9 @@ class GroupController extends GetxController {
         "lastmessage": message,
         "lastMessageTime": DateTime.now().toString(),
         "lastMessageBy": profileController.currentUser.value.name,
+        "unReadCount": unreadCount,
+        "memberUnreadStatus": memberUnreadStatus,
+        "lastSenderId": currentUserId,
       });
     } else if (imagePath.isNotEmpty && videoPath == "") {
       String imageUrl = await profileController.uploadFileToCloudinaryUnsigned(
@@ -144,7 +164,7 @@ class GroupController extends GetxController {
         id: chatId,
         message: message,
         imageUrl: imageUrl,
-        senderId: auth.currentUser!.uid,
+        senderId: currentUserId,
         senderName: profileController.currentUser.value.name,
         timestamp: DateTime.now().toString(),
       );
@@ -158,6 +178,9 @@ class GroupController extends GetxController {
         "lastmessage": "📷📷",
         "lastMessageTime": DateTime.now().toString(),
         "lastMessageBy": profileController.currentUser.value.name,
+        "unReadCount": unreadCount,
+        "memberUnreadStatus": memberUnreadStatus,
+        "lastSenderId": currentUserId,
       });
     } else {
       String videoUrl = await profileController.uploadVideoToCloudinary(
@@ -167,7 +190,7 @@ class GroupController extends GetxController {
         id: chatId,
         message: message,
         videoUrl: videoUrl,
-        senderId: auth.currentUser!.uid,
+        senderId: currentUserId,
         senderName: profileController.currentUser.value.name,
         timestamp: DateTime.now().toString(),
       );
@@ -181,6 +204,9 @@ class GroupController extends GetxController {
         "lastmessage": "🎦🎦",
         "lastMessageTime": DateTime.now().toString(),
         "lastMessageBy": profileController.currentUser.value.name,
+        "unReadCount": unreadCount,
+        "memberUnreadStatus": memberUnreadStatus,
+        "lastSenderId": currentUserId,
       });
     }
   }
@@ -319,11 +345,7 @@ class GroupController extends GetxController {
               .where(
                 (group) =>
                     group.members != null &&
-                    group.members!.any(
-                      (member) =>
-                          member.id == userId &&
-                          member.role != null, // Ensure member has a valid role
-                    ),
+                    group.members!.any((member) => member.id == userId),
               )
               .toList();
 
@@ -444,6 +466,39 @@ class GroupController extends GetxController {
       await sendGroupMessage("Group photo updated", groupId, "", "");
     } catch (e) {
       print("Error updating group photo: $e");
+    }
+  }
+
+  // Reset unread message count when a user opens a group chat
+  Future<void> resetGroupUnreadCount(String groupId) async {
+    try {
+      final currentUserId = auth.currentUser!.uid;
+
+      // Get current group data
+      final groupDoc = await db.collection("groups").doc(groupId).get();
+      if (!groupDoc.exists) return;
+
+      final group = GroupModel.fromJson(groupDoc.data()!);
+
+      // If the current user is the last sender, no need to update anything
+      if (group.lastSenderId == currentUserId) return;
+
+      // Get the current memberUnreadStatus map
+      Map<String, dynamic> memberUnreadStatus = group.memberUnreadStatus ?? {};
+
+      // Remove the current user from the unread status map
+      memberUnreadStatus.remove(currentUserId);
+
+      // Calculate new unread count based on remaining members with unread status
+      final newUnreadCount = memberUnreadStatus.length;
+
+      // Update the group document
+      await db.collection("groups").doc(groupId).update({
+        "memberUnreadStatus": memberUnreadStatus,
+        "unReadCount": newUnreadCount,
+      });
+    } catch (e) {
+      print("Error resetting unread count: $e");
     }
   }
 }

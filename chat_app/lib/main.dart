@@ -56,8 +56,6 @@ void _showNotification(RemoteMessage message) async {
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-
-  // Create the notification channel before initializing FirebaseApi
   await flutterLocalNotificationsPlugin
       .resolvePlatformSpecificImplementation<
         AndroidFlutterLocalNotificationsPlugin
@@ -66,7 +64,6 @@ Future<void> main() async {
 
   await FirebaseApi.initialize();
 
-  // Initialize CallController with proper error handling
   try {
     final callController = Get.put(CallController(), permanent: true);
     await callController.initializeZegoServices();
@@ -74,16 +71,11 @@ Future<void> main() async {
     print("Error initializing call services: $e");
   }
 
-  // Get the initial notification that launched the app
   final initialMessage = await FirebaseMessaging.instance.getInitialMessage();
 
   runApp(MyApp());
-
-  // Handle initial notification after app is built
   if (initialMessage != null) {
     print('Initial notification data: ${initialMessage.data}');
-
-    // Add a delay to ensure app is fully initialized
     await Future.delayed(Duration(seconds: 2));
 
     if (initialMessage.data['type'] == 'chat' &&

@@ -10,7 +10,7 @@ class Splacecontroller extends GetxController {
   }
 
   Future<void> splaceHandle() async {
-    await Future.delayed(Duration(seconds: 3));
+    await Future.delayed(Duration(seconds: 1));
     if (auth.currentUser == null) {
       Get.toNamed("/welcomePage");
     } else {
