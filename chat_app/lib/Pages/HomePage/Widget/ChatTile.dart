@@ -54,7 +54,7 @@ class ChatTile extends StatelessWidget {
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       border: Border.all(
-                        color: isOnline ? Colors.green : Colors.grey,
+                        color: isOnline ? Colors.green : Colors.green,
                         width: 2,
                       ),
                     ),

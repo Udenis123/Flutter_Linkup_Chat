@@ -199,7 +199,10 @@ class _CallListPageState extends State<CallListPage>
                               SizedBox(width: 8),
                               Text(
                                 time,
-                                style: TextStyle(color: Colors.grey[600]),
+                                style: TextStyle(
+                                  color: Colors.grey[600],
+                                  fontSize: 8,
+                                ),
                               ),
                             ],
                           ),

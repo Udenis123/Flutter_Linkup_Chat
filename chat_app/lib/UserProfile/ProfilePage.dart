@@ -16,18 +16,8 @@ class UserProfilepage extends StatelessWidget {
     ProfileController profileController = Get.put(ProfileController());
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text('Profile'),
-        actions: [
-          IconButton(
-            onPressed: () {
-              profileController.getUserDetails();
-
-              Get.toNamed("/updateProfile");
-            },
-            icon: Icon(Icons.edit),
-          ),
-        ],
+      appBar: AppBar(title: Text('Profile'), 
+  
       ),
 
       body: Padding(

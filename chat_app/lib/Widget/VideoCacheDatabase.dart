@@ -64,6 +64,6 @@ class VideoCacheDatabase {
     if (result.isNotEmpty) {
       return result.first['filePath'] as String?;
     }
-    return null; // Return null if no record is found.
+    return null; 
   }
 }

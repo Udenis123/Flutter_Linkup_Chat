@@ -75,21 +75,18 @@ class GroupPage extends StatelessWidget {
                     }
                   }
 
-                  // Check if this group has the current user as a member
+                  
                   final isMember =
                       group.members?.any((m) => m.id == userId) ?? false;
                   if (!isMember) {
                     print("User $userId is not a member of group ${group.id}");
-                    return SizedBox.shrink(); // Skip this group
+                    return SizedBox.shrink(); 
                   }
-
-                  // Determine if the current user should see an unread count
-                  // Only show unread count if the current user is not the last sender
                   int displayUnreadCount = 0;
                   if (group.lastSenderId != userId && group.memberUnreadStatus != null) {
-                    // Check if current user has unread messages
+                  
                     if (group.memberUnreadStatus!.containsKey(userId)) {
-                      displayUnreadCount = 1; // Show indicator that there are unread messages
+                      displayUnreadCount = 1; 
                     }
                   }
 

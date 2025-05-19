@@ -112,13 +112,8 @@ class ChatController extends GetxController {
     } catch (e) {
       print("Error getting chat room: $e");
     }
-
-    // CRITICAL FIX: Always set unread count to 1 for new messages from current user to target
-    // The unread count is for the target user (receiver of THIS message), not the current user
     int newUnreadCount = 1;
 
-    // If the current user is sending a message to the target user,
-    // the target user should see 1 unread message (or increment if there were previous unread)
     if (roomDoc != null && roomDoc.exists) {
       final roomData = roomDoc.data() as Map<String, dynamic>?;
       if (roomData != null) {
@@ -129,8 +124,7 @@ class ChatController extends GetxController {
           int currentUnreadCount = roomData['unReadMessNo'] ?? 0;
           newUnreadCount = currentUnreadCount + 1;
         }
-        // If the current user was previously the receiver, the count resets to 1
-        // because we're now sending a new message to the other user
+       
       }
     }
 

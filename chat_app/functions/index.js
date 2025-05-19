@@ -14,14 +14,6 @@ exports.sendMissedCallNotification = onDocumentUpdated(
   async (event) => {
     const before = event.data.before.data();
     const after = event.data.after.data();
-
-    // Send notification if:
-    // 1. Call status changed to 'ended'
-    // 2. Call was not accepted
-    // 3. Either:
-    //    a) Call was ended by caller (endReason === 'ended_by_caller')
-    //    b) Call was missed (no interaction from receiver)
-    //    c) Call timed out
     if (
       before.status !== "ended" &&
       after.status === "ended" &&
@@ -31,7 +23,7 @@ exports.sendMissedCallNotification = onDocumentUpdated(
       const receiverUid = after.receiverUid;
       const callerName = after.callerName || "Someone";
       const callType = after.callType || "voice";
-      const callId = event.params.callId; // Use the actual document ID
+      const callId = event.params.callId; 
 
       // Get receiver's FCM token
       const userDoc = await getFirestore()
@@ -50,7 +42,7 @@ exports.sendMissedCallNotification = onDocumentUpdated(
         return;
       }
 
-      // Get caller's profile image or use default
+    
       const defaultImage =
         "https://th.bing.com/th/id/OIP.SAcV4rjQCseubnk32USHigHaHx?rs=1&pid=ImgDetMain";
       let callerImage = "";
@@ -65,11 +57,11 @@ exports.sendMissedCallNotification = onDocumentUpdated(
         callerImage = defaultImage;
       }
 
-      // Update call log in receiver's subcollection
+    
       try {
         const callLogData = {
           ...after,
-          status: "missed", // Mark explicitly as missed
+          status: "missed", 
           timestamp: new Date().toISOString(),
           accepted: false,
         };
@@ -86,7 +78,7 @@ exports.sendMissedCallNotification = onDocumentUpdated(
         console.error("Error updating call log:", error);
       }
 
-      // Prepare notification message
+    
       const message = {
         token: fcmToken,
         notification: {
